@@ -1,67 +1,7 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ivana — Classroom</title><link rel="stylesheet" href="css/styles.css"></head>
-<body>
-<aside class="sidebar">
-  <div class="brand">
-    <img src="assets/images/ivana-daisy.png" alt="Daisy">
-    <div><strong>Ivana</strong><div class="sub">Study companion</div></div>
-  </div>
-  <nav class="nav">
-    <a href="1index.html">Home</a>
-    <a href="2library.html">Library</a>
-    <a href="3study.html">Study</a>
-    <a href="4classroom.html">Classroom</a>
-    <a href="5review.html">Review</a>
-    <a href="6knowledge-map.html">Knowledge Map</a>
-    <a href="7progress.html">Progress</a>
-  </nav>
-</aside>
-<main class="main">
-<div class="eyebrow">Curriculum lens</div><h1 class="title">Classroom</h1>
-<p class="desc">See your growing knowledge through the discussion and objectives of each syllabus.</p>
-<div class="course-picker">
-<button class="course-chip active">HORT 232</button><button class="course-chip">HORT 231</button><button class="course-chip">HORT 230</button><button class="course-chip">CRSC 245</button><button class="course-chip">ENS 201</button><button class="course-chip">ENS 296</button>
-</div>
-<div class="card section">
-  <span class="tag">HORT 232 · Physiology and Biochemistry of Endogenous Growth Regulators</span>
-  <h2>Discussion structure</h2>
-  <div class="classroom-grid">
-    <div class="syllabus-topic"><b>Auxins</b><small>Source coverage: 3 chapters</small><span class="topic-state covered">Covered</span></div>
-    <div class="syllabus-topic"><b>Mode and mechanisms of action</b><small>Reconstruct mechanisms, not definitions alone</small><span class="topic-state active-state">In study</span></div>
-    <div class="syllabus-topic"><b>Synthesis, transport, withdrawal</b><small>Connect internal and external factors</small><span class="topic-state">Developing</span></div>
-    <div class="syllabus-topic"><b>Exogenous PGR responses</b><small>Applications and physiological responses</small><span class="topic-state">Not started</span></div>
-    <div class="syllabus-topic"><b>Optimization in crop production</b><small>Methods and principles</small><span class="topic-state">Not started</span></div>
-  </div>
-</div>
-<div class="notice section"><b>Source / Course / Inference:</b> A book chapter can feed several courses. Ivana should identify direct syllabus alignment separately from supporting or inferred relationships.</div>
-<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools">
-  <div class="float-device timer-device" id="postitTimer">
-    <div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div>
-    <div class="timer-device-main">
-      <div class="postit-flower">✿</div>
-      <div class="postit-label" id="timerLabel">FOCUS</div>
-      <div class="postit-time" id="timerDisplay">30:00</div>
-    </div>
-    <div class="postit-actions">
-      <button class="mini-btn" onclick="startTimer()">Start</button>
-      <button class="mini-btn" onclick="pauseTimer()">Pause</button>
-      <button class="mini-btn" onclick="resetTimer()">Reset</button>
-      <button class="mini-btn" onclick="skipTimer()">Skip</button>
-    </div>
-    <div class="postit-status" id="timerStatus">Ready when you are.</div>
-  </div>
-
-  <div class="float-device inspire-device" id="inspireDevice">
-    <div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div>
-    <button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button>
-    <div class="inspire-card" id="inspireCard" hidden>
-      <div class="inspire-kicker" id="inspireKicker">STOICISM · PERSEVERANCE</div>
-      <blockquote id="inspireQuote">“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”</blockquote>
-      <div class="inspire-author" id="inspireAuthor">— Winston Churchill, Harrow School, 29 October 1941</div>
-      <div class="inspire-source" id="inspireSource">Verified speech · International Churchill Society</div>
-      <button class="inspire-next" id="inspireNext" type="button">another thought →</button>
-    </div>
-  </div>
-</div>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ivana — Classroom</title><link rel="stylesheet" href="css/styles.css"></head><body>
+<aside class="sidebar"><div class="brand"><img src="assets/images/ivana-daisy.png" alt="Daisy"><div><strong>Ivana</strong><div class="sub">Study companion</div></div></div><nav class="nav"><a href="1index.html">Home</a><a href="2library.html">Library</a><a href="3study.html">Study</a><a href="4classroom.html">Classroom</a><a href="5review.html">Review</a><a href="6knowledge-map.html">Knowledge Map</a><a href="7progress.html">Progress</a></nav></aside>
+<main class="main"><div class="eyebrow">Curriculum</div><h1 class="title">Classroom</h1><p class="desc">Your courses and syllabus lenses will appear here.</p>
+<div class="card section empty-state"><div class="empty-icon">⌘</div><h2>No courses added yet.</h2><p>Add your syllabus and course information to create Dynamic Classrooms. Nothing is preloaded.</p><button class="btn primary" id="addCourseDemo">＋ Add course</button></div>
+<div class="card section"><h3>Course workspace</h3><p>Course objectives, source alignment, developing topics, and evidence will appear here after you add a course.</p></div>
+<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools"><div class="float-device timer-device" id="postitTimer"><div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div><div class="timer-device-main"><div class="postit-flower">✿</div><div class="postit-label" id="timerLabel">FOCUS</div><div class="postit-time" id="timerDisplay">30:00</div></div><div class="postit-actions"><button class="mini-btn" onclick="startTimer()">Start</button><button class="mini-btn" onclick="pauseTimer()">Pause</button><button class="mini-btn" onclick="resetTimer()">Reset</button><button class="mini-btn" onclick="skipTimer()">Skip</button></div><div class="postit-status" id="timerStatus">Ready when you are.</div></div><div class="float-device inspire-device" id="inspireDevice"><div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div><button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button><div class="inspire-card" id="inspireCard" hidden><div class="inspire-kicker" id="inspireKicker"></div><blockquote id="inspireQuote"></blockquote><div class="inspire-author" id="inspireAuthor"></div><div class="inspire-source" id="inspireSource"></div><button class="inspire-next" id="inspireNext" type="button">another thought →</button></div></div></div>
 </main><script src="js/app.js"></script></body></html>

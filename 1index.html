@@ -1,81 +1,8 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ivana — Home</title><link rel="stylesheet" href="css/styles.css"></head>
-<body>
-<aside class="sidebar">
-  <div class="brand">
-    <img src="assets/images/ivana-daisy.png" alt="Daisy">
-    <div><strong>Ivana</strong><div class="sub">Study companion</div></div>
-  </div>
-  <nav class="nav">
-    <a href="1index.html">Home</a>
-    <a href="2library.html">Library</a>
-    <a href="3study.html">Study</a>
-    <a href="4classroom.html">Classroom</a>
-    <a href="5review.html">Review</a>
-    <a href="6knowledge-map.html">Knowledge Map</a>
-    <a href="7progress.html">Progress</a>
-  </nav>
-</aside>
-<main class="main">
-<div class="eyebrow">Good evening</div>
-<h1 class="title">Let's learn something.</h1>
-<p class="desc">Your study space brings reading, understanding, connections, testing, and notes together.</p>
-
-<div class="hero home-hero">
-  <div>
-    <span class="tag">Study flow</span>
-    <h2>Read → Understand → Connect → Reconstruct → Test → Master</h2>
-    <p>Upload a chapter, read it carefully, and let Ivana help you turn it into knowledge you can defend.</p>
-  </div>
-  <a class="btn primary" href="2library.html">Open Library</a>
-</div>
-
-<div class="grid g3 section">
-  <div class="card"><span class="tag">Library</span><h3>Many sources</h3><p>Keep chapters and books organized by source and course.</p></div>
-  <div class="card"><span class="tag">Study</span><h3>Focused sessions</h3><p>Use the timer, annotate what matters, and return when you drift.</p></div>
-  <div class="card"><span class="tag">Mastery</span><h3>Test your reasoning</h3><p>Move from recognition to retrieval to master's-level reconstruction.</p></div>
-</div>
-
-<div class="grid g2 section">
-  <div class="card">
-    <h3>Color code</h3>
-    <p>Use the same meanings every time you read.</p>
-    <div class="color-mini"><span class="swatch yellow"></span> Key idea <span class="swatch blue"></span> Mechanism <span class="swatch green"></span> Connection</div>
-    <div class="color-mini"><span class="swatch orange"></span> Evidence <span class="swatch red"></span> Gap <span class="swatch purple"></span> Exam / recall</div>
-  </div>
-  <div class="card">
-    <h3>Ivana's principle</h3>
-    <div class="callout"><b>You remembered the outcome.</b><br>Now let's reconstruct the mechanism.</div>
-  </div>
-</div>
-<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools">
-  <div class="float-device timer-device" id="postitTimer">
-    <div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div>
-    <div class="timer-device-main">
-      <div class="postit-flower">✿</div>
-      <div class="postit-label" id="timerLabel">FOCUS</div>
-      <div class="postit-time" id="timerDisplay">30:00</div>
-    </div>
-    <div class="postit-actions">
-      <button class="mini-btn" onclick="startTimer()">Start</button>
-      <button class="mini-btn" onclick="pauseTimer()">Pause</button>
-      <button class="mini-btn" onclick="resetTimer()">Reset</button>
-      <button class="mini-btn" onclick="skipTimer()">Skip</button>
-    </div>
-    <div class="postit-status" id="timerStatus">Ready when you are.</div>
-  </div>
-
-  <div class="float-device inspire-device" id="inspireDevice">
-    <div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div>
-    <button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button>
-    <div class="inspire-card" id="inspireCard" hidden>
-      <div class="inspire-kicker" id="inspireKicker">STOICISM · PERSEVERANCE</div>
-      <blockquote id="inspireQuote">“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”</blockquote>
-      <div class="inspire-author" id="inspireAuthor">— Winston Churchill, Harrow School, 29 October 1941</div>
-      <div class="inspire-source" id="inspireSource">Verified speech · International Churchill Society</div>
-      <button class="inspire-next" id="inspireNext" type="button">another thought →</button>
-    </div>
-  </div>
-</div>
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ivana — Home</title><link rel="stylesheet" href="css/styles.css"></head><body>
+<aside class="sidebar"><div class="brand"><img src="assets/images/ivana-daisy.png" alt="Daisy"><div><strong>Ivana</strong><div class="sub">Study companion</div></div></div><nav class="nav"><a href="1index.html">Home</a><a href="2library.html">Library</a><a href="3study.html">Study</a><a href="4classroom.html">Classroom</a><a href="5review.html">Review</a><a href="6knowledge-map.html">Knowledge Map</a><a href="7progress.html">Progress</a></nav></aside>
+<main class="main"><div class="eyebrow">Study space</div><h1 class="title">Welcome.</h1><p class="desc">Your study space is ready.</p>
+<div class="hero home-hero"><div><span class="tag">Nothing added yet</span><h2>Your workspace is empty.</h2><p>Add your first resource when you are ready to begin. Your notes, study history, review, and knowledge map will grow from what you actually add.</p></div><a class="btn primary" href="2library.html">Open Library</a></div>
+<div class="grid g3 section"><div class="card"><span class="tag">Library</span><h3>Resources</h3><p id="homeResourceState">No resources yet.</p></div><div class="card"><span class="tag">Study</span><h3>Focused sessions</h3><p id="homeSessionState">No sessions yet.</p></div><div class="card"><span class="tag">Mastery</span><h3>Review</h3><p id="homeReviewState">No review results yet.</p></div></div>
+<div class="card section"><h3>Study tools</h3><p>Timer and Inspire Me are available whenever you need them.</p></div>
+<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools"><div class="float-device timer-device" id="postitTimer"><div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div><div class="timer-device-main"><div class="postit-flower">✿</div><div class="postit-label" id="timerLabel">FOCUS</div><div class="postit-time" id="timerDisplay">30:00</div></div><div class="postit-actions"><button class="mini-btn" onclick="startTimer()">Start</button><button class="mini-btn" onclick="pauseTimer()">Pause</button><button class="mini-btn" onclick="resetTimer()">Reset</button><button class="mini-btn" onclick="skipTimer()">Skip</button></div><div class="postit-status" id="timerStatus">Ready when you are.</div></div><div class="float-device inspire-device" id="inspireDevice"><div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div><button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button><div class="inspire-card" id="inspireCard" hidden><div class="inspire-kicker" id="inspireKicker"></div><blockquote id="inspireQuote"></blockquote><div class="inspire-author" id="inspireAuthor"></div><div class="inspire-source" id="inspireSource"></div><button class="inspire-next" id="inspireNext" type="button">another thought →</button></div></div></div>
 </main><script src="js/app.js"></script></body></html>
