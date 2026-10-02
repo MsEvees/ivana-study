@@ -7,32 +7,36 @@ window.ivana={load,save};
 
 /* Supabase authentication — the publishable key is browser-safe; secrets are never used here. */
 const supabaseClient = (window.supabase && window.IVANA_SUPABASE_URL && window.IVANA_SUPABASE_PUBLISHABLE_KEY)
-  ? window.supabase.createClient(window.IVANA_SUPABASE_URL, window.IVANA_SUPABASE_PUBLISHABLE_KEY)
+  ? window.supabase.createClient(window.IVANA_SUPABASE_URL, window.IVANA_SUPABASE_PUBLISHABLE_KEY, {auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})
   : null;
 window.ivana.supabase = supabaseClient;
 const isLoginPage = ['0login.html','index.html',''].includes((location.pathname.split('/').pop() || 'index.html'));
+const prototypeMode = ()=>localStorage.getItem('ivana_prototype_mode')==='true';
+
+function authMessage(error){
+  const m=String(error?.message||'');
+  if(/Invalid login credentials/i.test(m)) return 'We could not sign you in. Check your email and password.';
+  if(/Email not confirmed/i.test(m)) return 'Please confirm your email first, then try signing in again.';
+  if(/already registered|already exists/i.test(m)) return 'An account with this email already exists. Try signing in instead.';
+  return m || 'Something went wrong. Please try again.';
+}
 
 async function initAuth(){
   if(!supabaseClient){
-    if(isLoginPage){
-      const status=document.querySelector('#loginStatus');
-      if(status) status.textContent='Sign-in service is not available. Please refresh the page.';
-    }
+    if(isLoginPage){ const status=document.querySelector('#loginStatus'); if(status) status.textContent='Sign-in service is not available. Please refresh the page.'; }
     return;
   }
+  supabaseClient.auth.onAuthStateChange((event, session)=>{
+    if(isLoginPage && event==='SIGNED_IN' && session) location.replace('1index.html');
+    if(!isLoginPage && event==='SIGNED_OUT') location.replace('index.html');
+  });
   const {data:{session}} = await supabaseClient.auth.getSession();
-  if(isLoginPage){
-    if(session) location.replace('1index.html');
-    return;
-  }
-  if(!session){
-    location.replace('index.html');
-    return;
-  }
+  if(isLoginPage){ if(session) location.replace('1index.html'); return; }
+  if(!session && !prototypeMode()){ location.replace('index.html'); return; }
   document.querySelector('#signOutButton')?.addEventListener('click', async ()=>{
-    const btn=document.querySelector('#signOutButton');
-    if(btn) btn.disabled=true;
+    const btn=document.querySelector('#signOutButton'); if(btn) btn.disabled=true;
     await supabaseClient.auth.signOut();
+    localStorage.removeItem('ivana_prototype_mode');
     location.replace('index.html');
   });
 }
@@ -41,22 +45,71 @@ async function handleLogin(e){
   e.preventDefault();
   const email=document.querySelector('#loginEmail')?.value.trim();
   const password=document.querySelector('#loginPassword')?.value || '';
-  const button=document.querySelector('#loginButton');
-  const status=document.querySelector('#loginStatus');
+  const button=document.querySelector('#loginButton'); const status=document.querySelector('#loginStatus');
   if(!supabaseClient){ if(status) status.textContent='Sign-in service is not available. Please refresh the page.'; return; }
-  if(button){button.disabled=true;button.textContent='Signing in…';}
-  if(status) status.textContent='';
+  if(button){button.disabled=true;button.textContent='Signing in…'} if(status) status.textContent='';
   const {error}=await supabaseClient.auth.signInWithPassword({email,password});
-  if(error){
-    if(status) status.textContent='We could not sign you in. Check your email and password and try again.';
-    if(button){button.disabled=false;button.textContent='Sign in';}
-    return;
+  if(error){ if(status) status.textContent=authMessage(error); if(button){button.disabled=false;button.textContent='Sign in'} return; }
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(session) location.replace('1index.html');
+}
+
+function openAuthModal(mode){
+  const modal=document.querySelector('#authModal'); if(!modal)return;
+  modal.hidden=false;
+  const signup=document.querySelector('#signupForm'), reset=document.querySelector('#resetForm');
+  const eyebrow=document.querySelector('#authModalEyebrow'), title=document.querySelector('#authModalTitle'), intro=document.querySelector('#authModalIntro');
+  if(mode==='reset'){
+    signup.hidden=true; reset.hidden=false; eyebrow.textContent='Reset password'; title.textContent='Let’s get you back in.'; intro.textContent='Enter your email and Supabase will send you a password reset link.';
+  }else{
+    signup.hidden=false; reset.hidden=true; eyebrow.textContent='Create an account'; title.textContent='Begin your study space.'; intro.textContent='Create your account and we’ll keep your study space connected to you.';
   }
-  location.replace('1index.html');
+}
+function closeAuthModal(){const modal=document.querySelector('#authModal'); if(modal) modal.hidden=true;}
+
+async function handleSignup(e){
+  e.preventDefault();
+  const email=document.querySelector('#signupEmail')?.value.trim(); const password=document.querySelector('#signupPassword')?.value||''; const confirm=document.querySelector('#signupConfirm')?.value||'';
+  const button=document.querySelector('#signupButton'), status=document.querySelector('#signupStatus');
+  if(password!==confirm){status.textContent='The passwords do not match.'; return;}
+  if(!supabaseClient){status.textContent='Sign-in service is not available. Please refresh the page.'; return;}
+  button.disabled=true; button.textContent='Creating account…'; status.textContent='';
+  const {data,error}=await supabaseClient.auth.signUp({email,password});
+  if(error){status.textContent=authMessage(error); button.disabled=false; button.textContent='Create account'; return;}
+  if(data.session){ location.replace('1index.html'); return; }
+  status.textContent='Account created. Check your email to confirm your account, then sign in.';
+  button.disabled=false; button.textContent='Create account';
+}
+
+async function handleReset(e){
+  e.preventDefault();
+  const email=document.querySelector('#resetEmail')?.value.trim(); const button=document.querySelector('#resetButton'), status=document.querySelector('#resetStatus');
+  if(!supabaseClient){status.textContent='Sign-in service is not available. Please refresh the page.'; return;}
+  button.disabled=true; button.textContent='Sending…'; status.textContent='';
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:new URL('index.html',location.href).href});
+  if(error){status.textContent=authMessage(error); button.disabled=false; button.textContent='Send reset link'; return;}
+  status.textContent='Check your email for the password reset link.'; button.disabled=false; button.textContent='Send reset link';
 }
 
 document.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
+document.querySelector('#createAccountLink')?.addEventListener('click', ()=>openAuthModal('signup'));
+document.querySelector('#forgotPasswordLink')?.addEventListener('click', ()=>openAuthModal('reset'));
+document.querySelector('#authModalClose')?.addEventListener('click', closeAuthModal);
+document.querySelector('#signupForm')?.addEventListener('submit', handleSignup);
+document.querySelector('#resetForm')?.addEventListener('submit', handleReset);
+document.querySelector('#authModal')?.addEventListener('click', e=>{if(e.target.id==='authModal')closeAuthModal()});
 initAuth();
+
+/* Temporary prototype entry — remove this block when Supabase authentication is ready to stand alone. */
+if(isLoginPage){
+  const box=document.querySelector('.box');
+  if(box && !document.querySelector('#prototypeLogin')){
+    const wrap=document.createElement('div'); wrap.className='prototype-entry';
+    wrap.innerHTML='<div class="prototype-divider"><span>or</span></div><button type="button" class="text-link prototype-link" id="prototypeLogin">Enter prototype</button>';
+    box.appendChild(wrap);
+    document.querySelector('#prototypeLogin')?.addEventListener('click',()=>{localStorage.setItem('ivana_prototype_mode','true');location.replace('1index.html')});
+  }
+}
 
 /* Course configuration: these are subjects, not mock study content. */
 let courseConfig=[];
