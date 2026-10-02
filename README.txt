@@ -1,7 +1,17 @@
-IVANA V2.3 — BLANK FUNCTIONAL SHELL
+IVANA V4 — SUPABASE CONNECTED BLANK FUNCTIONAL SHELL
 
-This version intentionally contains NO mock study resources, mock course content, sample PDF text, sample knowledge-map nodes, or sample review questions.
+This version connects the Ivana login screen to the Ivana Supabase project using the browser-safe publishable key.
 
-The interface and prototype interactions remain: navigation, empty states, PDF upload shell, study reader shell, annotations toolbar, notebook tabs, timer, Inspire Me, progress shell, and knowledge-map shell.
+The application is intentionally empty of study content. Courses remain available as curriculum structure.
 
-Next online step: connect Supabase Auth, private Storage, database tables, and real study data.
+Current backend connection:
+- Supabase Auth: connected
+- Private file storage: not yet connected
+- Database: not yet connected
+- AI ingestion/processing: not yet connected
+
+Security:
+- Only the Supabase project URL and publishable key are included in the frontend.
+- Never add a Supabase secret/service-role key, database password, or other server credential to this repository.
+
+The next backend stage is private Storage + database tables with Row Level Security.

@@ -3,32 +3,129 @@ const $=s=>document.querySelector(s);
 const load=(k,d)=>{try{const v=localStorage.getItem('ivana_'+k);return v===null?d:JSON.parse(v)}catch(e){return d}};
 const save=(k,v)=>localStorage.setItem('ivana_'+k,JSON.stringify(v));
 window.ivana={load,save};
+
+
+/* Supabase authentication — the publishable key is browser-safe; secrets are never used here. */
+const supabaseClient = (window.supabase && window.IVANA_SUPABASE_URL && window.IVANA_SUPABASE_PUBLISHABLE_KEY)
+  ? window.supabase.createClient(window.IVANA_SUPABASE_URL, window.IVANA_SUPABASE_PUBLISHABLE_KEY)
+  : null;
+window.ivana.supabase = supabaseClient;
+const isLoginPage = ['0login.html','index.html',''].includes((location.pathname.split('/').pop() || 'index.html'));
+
+async function initAuth(){
+  if(!supabaseClient){
+    if(isLoginPage){
+      const status=document.querySelector('#loginStatus');
+      if(status) status.textContent='Sign-in service is not available. Please refresh the page.';
+    }
+    return;
+  }
+  const {data:{session}} = await supabaseClient.auth.getSession();
+  if(isLoginPage){
+    if(session) location.replace('1index.html');
+    return;
+  }
+  if(!session){
+    location.replace('index.html');
+    return;
+  }
+  document.querySelector('#signOutButton')?.addEventListener('click', async ()=>{
+    const btn=document.querySelector('#signOutButton');
+    if(btn) btn.disabled=true;
+    await supabaseClient.auth.signOut();
+    location.replace('index.html');
+  });
+}
+
+async function handleLogin(e){
+  e.preventDefault();
+  const email=document.querySelector('#loginEmail')?.value.trim();
+  const password=document.querySelector('#loginPassword')?.value || '';
+  const button=document.querySelector('#loginButton');
+  const status=document.querySelector('#loginStatus');
+  if(!supabaseClient){ if(status) status.textContent='Sign-in service is not available. Please refresh the page.'; return; }
+  if(button){button.disabled=true;button.textContent='Signing in…';}
+  if(status) status.textContent='';
+  const {error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error){
+    if(status) status.textContent='We could not sign you in. Check your email and password and try again.';
+    if(button){button.disabled=false;button.textContent='Sign in';}
+    return;
+  }
+  location.replace('1index.html');
+}
+
+document.querySelector('#loginForm')?.addEventListener('submit', handleLogin);
+initAuth();
+
+/* Course configuration: these are subjects, not mock study content. */
+let courseConfig=[];
+async function loadCourses(){
+ try{const r=await fetch('data/courses.json',{cache:'no-store'});const j=await r.json();courseConfig=Array.isArray(j?.courses)?j.courses:[];}catch(e){courseConfig=[];}
+ const selects=[document.querySelector('#resourceCourse'),document.querySelector('#resourceCourseFilter')].filter(Boolean);
+ selects.forEach(sel=>{const current=sel.value; const first=sel.id==='resourceCourseFilter'?'<option value="">All courses</option>':'<option value="">Choose course</option>'; sel.innerHTML=first+courseConfig.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.title)}</option>`).join(''); if(current)sel.value=current;});
+ renderCourses();
+ renderResources();
+}
+function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));}
+function courseName(code){const c=courseConfig.find(x=>x.code===code);return c?`${c.code} — ${c.title}`:(code||'Unassigned');}
+function renderCourses(){
+ const list=document.querySelector('#courseList'); if(!list)return;
+ list.innerHTML=courseConfig.map(c=>`<div class="course-item"><div><div class="course-code">${escapeHtml(c.code)}</div><div class="course-title">${escapeHtml(c.title)}</div></div><div class="course-status">No study materials yet</div></div>`).join('');
+}
+
+/* Browser-local source storage for the functional shell. Files are private to this browser for now. */
+const DB_NAME='ivana_local'; const DB_VERSION=2; const STORE='sources';
+function openSourceDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE,{keyPath:'id'});};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function putSource(record){const db=await openSourceDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(record);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+async function getSource(id){const db=await openSourceDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);});}
+async function deleteSource(id){const db=await openSourceDB();return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error);});}
+function selectedCourses(){return Array.from(document.querySelector('#resourceCourse')?.selectedOptions||[]).map(o=>o.value).filter(Boolean)}
+function sourceTypeName(t){return ({syllabus:'Syllabus',book:'Book / book chapter',research_paper:'Research paper',other:'Other academic source'}[t]||'Source')}
 const page=location.pathname.split('/').pop()||'index.html';
 document.querySelectorAll('.nav a').forEach(a=>{if(a.getAttribute('href')===page)a.classList.add('active')});
-$('#demoLogin')?.addEventListener('click',e=>{e.preventDefault();location.href='1index.html'});
-$('#loginForm')?.addEventListener('submit',e=>{e.preventDefault();location.href='1index.html'});
 
-/* Empty starter library: no resources are preloaded. */
-const resources=load('resources',[]);
-function renderLibrary(){
- const empty=$('.empty-state'); const search=$('#resourceSearch');
- if(search)search.disabled=resources.length===0;
- if(empty && resources.length){empty.innerHTML='<h2>Your resources</h2><p>Resources added in this browser will appear here.</p>'}
+let resources=load('resources',[]);
+function renderResources(){
+ const list=document.querySelector('#libraryList'); if(!list)return;
+ const filter=document.querySelector('#resourceCourseFilter')?.value||'';
+ const q=(document.querySelector('#resourceSearch')?.value||'').toLowerCase().trim();
+ const shown=resources.filter(r=>(!filter||r.courses?.includes(filter)||r.course===filter)&&(!q||`${r.title} ${r.fileName||''} ${r.type||''} ${(r.courses||[]).join(' ')}`.toLowerCase().includes(q)));
+ if(!shown.length){list.className='card section empty-state';list.innerHTML='<div class="empty-icon">＋</div><h2>Your library is empty.</h2><p>Add a syllabus, book, research paper, PDF/DOC/DOCX, or copied text to begin building your private study library.</p>';return}
+ list.className='card section';
+ list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):''}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${r.id}">Open</button><button class="btn outline small" data-delete-resource="${r.id}">Remove</button></div></div>`).join('')+'</div>';
+ list.querySelectorAll('[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openResource));location.href='3study.html'}));
+ list.querySelectorAll('[data-delete-resource]').forEach(b=>b.addEventListener('click',async()=>{const id=Number(b.dataset.deleteResource);await deleteSource(id);resources=resources.filter(r=>Number(r.id)!==id);save('resources',resources);renderResources();}));
 }
-renderLibrary();
-const upload=$('#uploadDemo'),modal=$('#uploadDemoBox');
+const upload=$('#addSourceButton'),modal=$('#addSourceBox');
 upload?.addEventListener('click',()=>{if(modal)modal.style.display='flex'});
-$('#closeUpload')?.addEventListener('click',()=>modal.style.display='none');
-$('#addResource')?.addEventListener('click',()=>{
- const file=$('#pdfFile')?.files?.[0]; const title=$('#resourceTitle')?.value.trim() || file?.name || '';
- if(!file){alert('Choose a PDF first.');return}
- resources.push({id:Date.now(),title,fileName:file.name,course:$('#resourceCourse')?.value||'',size:file.size});
- save('resources',resources); modal.style.display='none'; renderLibrary(); alert('Resource added to this browser prototype. Private cloud upload will be connected through Supabase next.');
+$('#closeAddSource')?.addEventListener('click',()=>modal.style.display='none');
+$('#inputMode')?.addEventListener('change',e=>{const text=e.target.value==='text'; if($('#fileInputWrap'))$('#fileInputWrap').style.display=text?'none':'block'; if($('#textInputWrap'))$('#textInputWrap').style.display=text?'block':'none';});
+$('#addResource')?.addEventListener('click',async()=>{
+ const type=$('#resourceType')?.value||''; const inputMode=$('#inputMode')?.value||'file'; const file=$('#resourceFile')?.files?.[0]; const pasted=$('#resourceText')?.value.trim()||''; const title=$('#resourceTitle')?.value.trim() || file?.name || (pasted? 'Copied text':''); const courses=selectedCourses();
+ if(!type){alert('Choose a source type first.');return}
+ if(type==='syllabus'&&!courses.length){alert('Select the course this syllabus belongs to.');return}
+ if(inputMode==='text'&&!pasted){alert('Paste some text first.');return}
+ if(inputMode==='file'&&!file){alert('Choose a PDF, DOC, or DOCX file first.');return}
+ const id=Date.now();
+ try{await putSource({id,title,type,inputMode,fileName:file?.name||'',courses,course:courses[0]||'',size:file?.size||0,mimeType:file?.type||'text/plain',blob:file||null,text:pasted||'',addedAt:new Date().toISOString()});resources.push({id,title,type,inputMode,fileName:file?.name||'',courses,size:file?.size||0});save('resources',resources);modal.style.display='none';renderResources();alert('Source added to your local Ivana library. It is stored in this browser only for now.');}
+ catch(err){console.error(err);alert('The source could not be stored in this browser. Please try again.')} 
 });
-$('#resourceSearch')?.addEventListener('input',e=>{
- const q=e.target.value.toLowerCase();document.querySelectorAll('[data-search]').forEach(x=>x.style.display=x.dataset.search.includes(q)?'flex':'none');
-});
+$('#resourceSearch')?.addEventListener('input',renderResources);
+$('#resourceCourseFilter')?.addEventListener('change',renderResources);
 
+/* Open a locally stored source in the Study workspace. PDF is previewed; text is shown; DOC/DOCX is kept for later backend extraction. */
+async function renderCurrentResource(){
+ const reader=document.querySelector('.reader-empty'); if(!reader)return;
+ const id=Number(localStorage.getItem('ivana_currentResource')); if(!id)return;
+ const meta=resources.find(r=>Number(r.id)===id); if(!meta)return;
+ try{const record=await getSource(id); if(!record){reader.innerHTML='<span>Source not found</span>';return}
+   const header=`<div class="reader-title"><strong>${escapeHtml(meta.title)}</strong><small>${escapeHtml(sourceTypeName(meta.type))}${meta.fileName?' · '+escapeHtml(meta.fileName):''}</small></div>`;
+   if(record.text){reader.className='reader-empty reader-active';reader.innerHTML=header+`<div class="source-text" style="white-space:pre-wrap;text-align:left;padding:24px;line-height:1.7;background:#fff;border-radius:14px">${escapeHtml(record.text)}</div>`;return}
+   if(record.blob && (record.mimeType==='application/pdf'||(record.fileName||'').toLowerCase().endsWith('.pdf'))){const url=URL.createObjectURL(record.blob);reader.className='reader-empty reader-active';reader.innerHTML=header+`<iframe title="PDF reader" src="${url}" style="width:100%;height:70vh;border:0;border-radius:14px;background:#fff"></iframe>`;return}
+   if(record.blob){const url=URL.createObjectURL(record.blob);reader.className='reader-empty reader-active';reader.innerHTML=header+`<div style="padding:32px;text-align:center"><p>This ${escapeHtml(sourceTypeName(meta.type))} is stored in your local library.</p><a class="btn primary" href="${url}" download="${escapeHtml(meta.fileName||meta.title)}">Open / download file</a><p class="muted">Full DOC/DOCX content extraction will be handled by Ivana's backend ingestion when Supabase is connected.</p></div>`;return}
+ }catch(e){console.error(e);reader.innerHTML='<span>Could not open this source.</span>'}
+}
 /* Study timer — persistent across pages */
 const timerDefaults={sec:1800,mode:'Focus',running:false,endAt:null,sessionStart:null};
 let timerState=load('timerState',timerDefaults); if(!timerState||typeof timerState!=='object')timerState={...timerDefaults};
@@ -48,7 +145,7 @@ window.addEventListener('storage',e=>{if(e.key==='ivana_timerState'){timerState=
 
 /* Inspire Me — content appears only after the user asks for it. */
 const inspiration=[
- {kind:'QUOTE',tag:'STOICISM · PERSEVERANCE',quote:'“The impediment to action advances action. What stands in the way becomes the way.”',author:'— Marcus Aurelius, Meditations',source:'Book 5 · source attribution shown in the prototype'},
+ {kind:'QUOTE',tag:'STOICISM · PERSEVERANCE',quote:'“The impediment to action advances action. What stands in the way becomes the way.”',author:'— Marcus Aurelius, Meditations',source:'Book 5 · source attribution'},
  {kind:'QUOTE',tag:'STOICISM · CONTROL',quote:'“Some things are in our control and others not.”',author:'— Epictetus, Enchiridion',source:'Chapter 1 · traditional translation'},
  {kind:'QUOTE',tag:'PERSEVERANCE · CHURCHILL',quote:'“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”',author:'— Winston Churchill, Harrow School, 29 October 1941',source:'Speech · International Churchill Society'},
  {kind:'CONCEPT',tag:'JAPANESE PHILOSOPHY · SHOSHIN',quote:'SHOSHIN — “beginner’s mind.”',author:'A Zen principle associated with openness and curiosity in learning.',source:'Concept card · not presented as a quotation'},
@@ -73,5 +170,6 @@ if($('#sessions')){$('#sessions').textContent=load('sessions',0);$('#focusMinute
 const tabs=document.querySelectorAll('.tab'),panels=document.querySelectorAll('.notebook-panel');tabs.forEach(tab=>tab.addEventListener('click',()=>{tabs.forEach(t=>t.classList.remove('active'));tab.classList.add('active');panels.forEach(p=>p.style.display=p.dataset.panel===tab.dataset.tab?'block':'none')}));
 const notes=$('#personalNotes');if(notes){notes.value=load('personalNotes','');$('#saveNotes')?.addEventListener('click',()=>{save('personalNotes',notes.value);if($('#saveStatus'))$('#saveStatus').textContent='Saved locally in this browser.'})}
 $('#mapReset')?.addEventListener('click',()=>{if($('#mapBreadcrumb'))$('#mapBreadcrumb').textContent='Whole knowledge landscape';if($('#inspectorTitle'))$('#inspectorTitle').textContent='Nothing to explore yet';if($('#inspectorText'))$('#inspectorText').textContent='Concepts and relationships will appear here after Ivana has evidence from your study materials.'});
-$('#addCourseDemo')?.addEventListener('click',()=>alert('Course setup will be connected to Supabase next. No courses are preloaded.'));
+loadCourses();
+renderCurrentResource();
 })();
