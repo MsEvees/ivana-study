@@ -1,13 +1,12 @@
 <!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ivana — Welcome</title><link rel="stylesheet" href="css/styles.css"></head>
+<title>Ivana V5 — Welcome</title><link rel="stylesheet" href="css/styles.css"></head>
 <body class="login-page">
 <div class="login">
   <section class="art login-art">
     <div class="daisy-scene">
-      <img src="assets/images/ivana-daisy.png" alt="Hand-painted white daisy">
-      <div class="login-wordmark">Ivana</div>
-      <p class="login-tagline">Take your time. There is always another connection waiting to be found.</p>
+      <div class="login-logo-lockup"><span class="login-logo-i"><img src="assets/images/ivana-logo-daisy.png" alt="Daisy flower forming the I in Ivana"></span><span class="login-logo-vana">vana</span></div>
+      <p class="login-tagline">Take your time. There’s always another connection waiting to be noticed.</p>
     </div>
   </section>
   <section class="loginbox">
@@ -34,6 +33,9 @@
     <h2 id="authModalTitle">Begin your study space.</h2>
     <p id="authModalIntro">Create your account and we’ll keep your study space connected to you.</p>
     <form id="signupForm">
+      <label>Study name</label>
+      <input id="signupDisplayName" class="input" type="text" autocomplete="nickname" placeholder="How Ivana should address you" maxlength="80" required>
+      <small class="auth-field-hint">This is your display name inside Ivana. You will still sign in with your email.</small>
       <label>Email</label>
       <input id="signupEmail" class="input" type="email" autocomplete="email" placeholder="you@example.com" required>
       <label>Password</label>
