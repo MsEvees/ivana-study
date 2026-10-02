@@ -1,0 +1,99 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ivana — Knowledge Map</title><link rel="stylesheet" href="css/styles.css"></head>
+<body>
+<aside class="sidebar">
+  <div class="brand">
+    <img src="assets/images/ivana-daisy.png" alt="Daisy">
+    <div><strong>Ivana</strong><div class="sub">Study companion</div></div>
+  </div>
+  <nav class="nav">
+    <a href="1index.html">Home</a>
+    <a href="2library.html">Library</a>
+    <a href="3study.html">Study</a>
+    <a href="4classroom.html">Classroom</a>
+    <a href="5review.html">Review</a>
+    <a href="6knowledge-map.html">Knowledge Map</a>
+    <a href="7progress.html">Progress</a>
+  </nav>
+</aside>
+<main class="main">
+<div class="eyebrow">Connections</div><h1 class="title">Knowledge Map</h1>
+<p class="desc">A freeform picture of how your growing body of knowledge connects across courses, references, notes, and inferred relationships.</p>
+
+<div class="map-toolbar">
+  <div><span class="map-breadcrumb" id="mapBreadcrumb">Whole knowledge landscape</span></div>
+  <div>
+    <button class="btn outline" id="mapFocusFlorigen">Focus: Florigen</button>
+    <button class="btn outline" id="mapReset">Show whole map</button>
+  </div>
+</div>
+
+<div class="knowledge-canvas" id="knowledgeCanvas" aria-label="Interactive knowledge map">
+  <svg class="knowledge-edges" id="knowledgeEdges" aria-hidden="true"></svg>
+  <div class="map-node-free" data-id="water" style="left:9%;top:18%"><strong>Water relations</strong><span>CRSC 245 · ENS 201 · ENS 296</span></div>
+  <div class="map-node-free" data-id="drought" style="left:24%;top:34%"><strong>Drought</strong><span>CRSC 245 · core</span></div>
+  <div class="map-node-free" data-id="stomata" style="left:39%;top:20%"><strong>Stomatal regulation</strong><span>CRSC 245 · HORT 232</span></div>
+  <div class="map-node-free" data-id="photosynthesis" style="left:52%;top:35%"><strong>Gas exchange</strong><span>CRSC 245</span></div>
+  <div class="map-node-free umbrella" data-id="development" style="left:67%;top:17%"><strong>Plant development</strong><span>HORT 230 · HORT 231 · HORT 232</span></div>
+  <div class="map-node-free" data-id="florigen" style="left:67%;top:42%"><strong>Florigen</strong><span>HORT 231 · core · HORT 232/241 related</span></div>
+  <div class="map-node-free" data-id="ft" style="left:82%;top:31%"><strong>FT</strong><span>HORT 231 · specific concept</span></div>
+  <div class="map-node-free" data-id="photoperiod" style="left:82%;top:55%"><strong>Photoperiod</strong><span>HORT 231 · environmental cue</span></div>
+  <div class="map-node-free" data-id="hormones" style="left:51%;top:62%"><strong>Growth-regulator interactions</strong><span>HORT 232 · HORT 231</span></div>
+  <div class="map-node-free" data-id="aba" style="left:31%;top:67%"><strong>ABA</strong><span>HORT 232 · stress response</span></div>
+  <div class="map-node-free" data-id="flowering" style="left:69%;top:72%"><strong>Floral transition</strong><span>HORT 231</span></div>
+  <div class="map-node-free inference" data-id="crosscourse" style="left:13%;top:67%"><strong>Cross-course pattern</strong><span>Ivana inference · verify</span></div>
+</div>
+
+<div class="map-inspector card" id="mapInspector">
+  <div class="inspector-kicker">MAP VIEW</div>
+  <h3 id="inspectorTitle">Explore the landscape</h3>
+  <p id="inspectorText">Click a concept to see its course relevance, connected concepts, and the evidence currently available to Ivana. The map grows as you add references, highlights, notes, and other study inputs.</p>
+  <div id="inspectorMeta" class="inspector-meta"></div>
+</div>
+
+<div class="map-gap card">
+  <div><div class="inspector-kicker">IVANA · DEVELOPING KNOWLEDGE</div><h3>What needs more evidence?</h3>
+  <p>Ivana can flag concepts whose representation is still sparse or whose relationships are weakly supported. A future online build can then suggest a targeted, verifiable reference rather than flooding you with readings.</p></div>
+  <div class="gap-example"><b>Example</b><span>Florigen ↔ FT</span><small>Strongly represented in HORT 231; related discussion in HORT 232 and HORT 241. Add more source material and the map can refine its picture.</small></div>
+</div>
+
+<div class="map-help"><b>How to use it:</b> this is a freeform knowledge graph, not a hierarchy. Click a node to focus the map. Zoom in conceptually by following its first-, second-, and third-level connections. Course relevance and source evidence are separate from the visual relationship.</div>
+
+<div class="course-key card">
+  <b>Course colors</b>
+  <span class="course-label crsc">CRSC</span> Crop Science
+  <span class="course-label hort">HORT</span> Horticulture
+  <span class="course-label ens">ENS</span> Environmental Science
+  <span class="course-label inference-key">INFERENCE</span> Ivana relationship to verify
+</div>
+<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools">
+  <div class="float-device timer-device" id="postitTimer">
+    <div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div>
+    <div class="timer-device-main">
+      <div class="postit-flower">✿</div>
+      <div class="postit-label" id="timerLabel">FOCUS</div>
+      <div class="postit-time" id="timerDisplay">30:00</div>
+    </div>
+    <div class="postit-actions">
+      <button class="mini-btn" onclick="startTimer()">Start</button>
+      <button class="mini-btn" onclick="pauseTimer()">Pause</button>
+      <button class="mini-btn" onclick="resetTimer()">Reset</button>
+      <button class="mini-btn" onclick="skipTimer()">Skip</button>
+    </div>
+    <div class="postit-status" id="timerStatus">Ready when you are.</div>
+  </div>
+
+  <div class="float-device inspire-device" id="inspireDevice">
+    <div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div>
+    <button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button>
+    <div class="inspire-card" id="inspireCard" hidden>
+      <div class="inspire-kicker" id="inspireKicker">STOICISM · PERSEVERANCE</div>
+      <blockquote id="inspireQuote">“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”</blockquote>
+      <div class="inspire-author" id="inspireAuthor">— Winston Churchill, Harrow School, 29 October 1941</div>
+      <div class="inspire-source" id="inspireSource">Verified speech · International Churchill Society</div>
+      <button class="inspire-next" id="inspireNext" type="button">another thought →</button>
+    </div>
+  </div>
+</div>
+</main><script src="js/app.js"></script></body></html>

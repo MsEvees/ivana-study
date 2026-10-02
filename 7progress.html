@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ivana — Progress</title><link rel="stylesheet" href="css/styles.css"></head>
+<body>
+<aside class="sidebar">
+  <div class="brand">
+    <img src="assets/images/ivana-daisy.png" alt="Daisy">
+    <div><strong>Ivana</strong><div class="sub">Study companion</div></div>
+  </div>
+  <nav class="nav">
+    <a href="1index.html">Home</a>
+    <a href="2library.html">Library</a>
+    <a href="3study.html">Study</a>
+    <a href="4classroom.html">Classroom</a>
+    <a href="5review.html">Review</a>
+    <a href="6knowledge-map.html">Knowledge Map</a>
+    <a href="7progress.html">Progress</a>
+  </nav>
+</aside>
+<main class="main">
+<div class="eyebrow">Mastery</div><h1 class="title">Progress</h1>
+<p class="desc">See how you are actually spending study time and what you can do with what you learned.</p>
+
+<div class="grid g4 section">
+  <div class="card"><h2 id="sessions">0</h2><p>Focus sessions</p></div>
+  <div class="card"><h2 id="focusMinutes">0 min</h2><p>Focused time</p></div>
+  <div class="card"><h2 id="correct">0</h2><p>Correct review answers</p></div>
+  <div class="card"><h2>3</h2><p>Assessment levels</p></div>
+</div>
+
+<div class="card section">
+  <h3>How you used the timer</h3>
+  <div class="timer-table-wrap">
+    <table class="timer-table"><thead><tr><th>Session</th><th>Start</th><th>End</th><th>Focus</th><th>Break</th><th>Status</th></tr></thead>
+    <tbody id="sessionTable"><tr><td colspan="6">No completed sessions yet.</td></tr></tbody></table>
+  </div>
+</div>
+
+<div class="grid g2 section">
+  <div class="card"><h3>What am I missing?</h3><p>Compare syllabus expectations with the chapters you've actually covered.</p><div class="notice">Example: a topic can be present in a source but still need Level 2 or Level 3 mastery.</div></div>
+  <div class="card"><h3>Where should Ivana push you?</h3><p>Repeated Level 1 success with weak Level 3 performance suggests a reconstruction/synthesis gap rather than a simple recall gap.</p></div>
+</div>
+<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools">
+  <div class="float-device timer-device" id="postitTimer">
+    <div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div>
+    <div class="timer-device-main">
+      <div class="postit-flower">✿</div>
+      <div class="postit-label" id="timerLabel">FOCUS</div>
+      <div class="postit-time" id="timerDisplay">30:00</div>
+    </div>
+    <div class="postit-actions">
+      <button class="mini-btn" onclick="startTimer()">Start</button>
+      <button class="mini-btn" onclick="pauseTimer()">Pause</button>
+      <button class="mini-btn" onclick="resetTimer()">Reset</button>
+      <button class="mini-btn" onclick="skipTimer()">Skip</button>
+    </div>
+    <div class="postit-status" id="timerStatus">Ready when you are.</div>
+  </div>
+
+  <div class="float-device inspire-device" id="inspireDevice">
+    <div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div>
+    <button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button>
+    <div class="inspire-card" id="inspireCard" hidden>
+      <div class="inspire-kicker" id="inspireKicker">STOICISM · PERSEVERANCE</div>
+      <blockquote id="inspireQuote">“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”</blockquote>
+      <div class="inspire-author" id="inspireAuthor">— Winston Churchill, Harrow School, 29 October 1941</div>
+      <div class="inspire-source" id="inspireSource">Verified speech · International Churchill Society</div>
+      <button class="inspire-next" id="inspireNext" type="button">another thought →</button>
+    </div>
+  </div>
+</div>
+</main><script src="js/app.js"></script></body></html>

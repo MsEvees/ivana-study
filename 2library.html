@@ -1,0 +1,94 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ivana — Library</title><link rel="stylesheet" href="css/styles.css"></head>
+<body>
+<aside class="sidebar">
+  <div class="brand">
+    <img src="assets/images/ivana-daisy.png" alt="Daisy">
+    <div><strong>Ivana</strong><div class="sub">Study companion</div></div>
+  </div>
+  <nav class="nav">
+    <a href="1index.html">Home</a>
+    <a href="2library.html">Library</a>
+    <a href="3study.html">Study</a>
+    <a href="4classroom.html">Classroom</a>
+    <a href="5review.html">Review</a>
+    <a href="6knowledge-map.html">Knowledge Map</a>
+    <a href="7progress.html">Progress</a>
+  </nav>
+</aside>
+<main class="main">
+<div class="eyebrow">Sources</div><h1 class="title">Library</h1>
+<p class="desc">Your reading library. V2 is designed for many long PDFs, including 100+ page books and chapters.</p>
+
+<div class="card upload-card">
+  <div><span class="tag">Tomorrow's workflow</span><h3>Add a chapter</h3><p>In the online build, this button will upload your PDF to private storage.</p></div>
+  <button class="btn primary" id="uploadDemo">＋ Upload PDF</button>
+</div>
+
+<div class="library-toolbar">
+  <input id="resourceSearch" class="search" placeholder="Search books, chapters, or courses...">
+  <select class="select compact"><option>All courses</option><option>HORT 232</option><option>HORT 231</option><option>HORT 230</option><option>CRSC 245</option><option>ENS 201</option><option>ENS 296</option></select>
+</div>
+
+<div class="card section">
+  <div class="resource" data-search="plant physiology chapter auxin HORT 232">
+    <div><b>Plant Physiology — Chapter 18: Auxins</b><br><small>HORT 232 · 42 pages · PDF</small></div>
+    <a class="btn secondary" href="3study.html">Read</a>
+  </div>
+  <div class="resource" data-search="plant water relations drought CRSC 245">
+    <div><b>Plant Water Relations — Chapter 7</b><br><small>CRSC 245 · 118 pages · PDF</small></div>
+    <a class="btn secondary" href="3study.html">Read</a>
+  </div>
+  <div class="resource" data-search="ecosystem hydrology ENS 201 ENS 296">
+    <div><b>Ecosystem Hydrology — Chapter 5</b><br><small>ENS 201 · ENS 296 · 103 pages · PDF</small></div>
+    <a class="btn secondary" href="3study.html">Read</a>
+  </div>
+</div>
+
+<div class="notice section"><b>Long-document design:</b> Ivana should analyze relevant sections as you reach them rather than forcing an entire 100+ page PDF into one AI request.</div>
+
+<div id="uploadDemoBox" class="modal-backdrop" style="display:none">
+  <div class="modal-card">
+    <button class="modal-close" id="closeUpload">×</button>
+    <span class="tag">Prototype</span>
+    <h2>Upload a chapter</h2>
+    <p>Choose a PDF to preview the future workflow. Real private upload will be connected tonight.</p>
+    <input class="input" type="file" accept=".pdf">
+    <div class="grid g2">
+      <input class="input" placeholder="Chapter / resource title">
+      <select class="select"><option>Choose course</option><option>HORT 232</option><option>HORT 231</option><option>HORT 230</option><option>CRSC 245</option><option>ENS 201</option><option>ENS 296</option></select>
+    </div>
+    <button class="btn primary" id="closeUpload2">Close</button>
+  </div>
+</div>
+<div class="study-float-dock" id="studyFloatDock" aria-label="Study tools">
+  <div class="float-device timer-device" id="postitTimer">
+    <div class="device-drag" data-drag-handle="timer" title="Drag timer">⠿</div>
+    <div class="timer-device-main">
+      <div class="postit-flower">✿</div>
+      <div class="postit-label" id="timerLabel">FOCUS</div>
+      <div class="postit-time" id="timerDisplay">30:00</div>
+    </div>
+    <div class="postit-actions">
+      <button class="mini-btn" onclick="startTimer()">Start</button>
+      <button class="mini-btn" onclick="pauseTimer()">Pause</button>
+      <button class="mini-btn" onclick="resetTimer()">Reset</button>
+      <button class="mini-btn" onclick="skipTimer()">Skip</button>
+    </div>
+    <div class="postit-status" id="timerStatus">Ready when you are.</div>
+  </div>
+
+  <div class="float-device inspire-device" id="inspireDevice">
+    <div class="device-drag" data-drag-handle="inspire" title="Drag inspiration">⠿</div>
+    <button class="inspire-button" id="inspireButton" type="button">✦ <span>Inspire me</span></button>
+    <div class="inspire-card" id="inspireCard" hidden>
+      <div class="inspire-kicker" id="inspireKicker">STOICISM · PERSEVERANCE</div>
+      <blockquote id="inspireQuote">“Never give in, never give in, never, never, never—in nothing, great or small, large or petty.”</blockquote>
+      <div class="inspire-author" id="inspireAuthor">— Winston Churchill, Harrow School, 29 October 1941</div>
+      <div class="inspire-source" id="inspireSource">Verified speech · International Churchill Society</div>
+      <button class="inspire-next" id="inspireNext" type="button">another thought →</button>
+    </div>
+  </div>
+</div>
+</main><script src="js/app.js"></script></body></html>

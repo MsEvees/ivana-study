@@ -1,0 +1,36 @@
+{
+  "courses": [
+    {
+      "code": "HORT 232",
+      "title": "Physiology and Biochemistry of Endogenous Growth Regulators"
+    },
+    {
+      "code": "HORT 231",
+      "title": "Reproductive Crop Physiology"
+    },
+    {
+      "code": "HORT 230",
+      "title": "Applied Fruit Crop Physiology"
+    },
+    {
+      "code": "HORT 241",
+      "title": "Plant Morphogenesis"
+    },
+    {
+      "code": "CROP SCI 245",
+      "title": "Stress Physiology of Plants"
+    },
+    {
+      "code": "ENS 201",
+      "title": "Ecosystem Structure and Dynamics"
+    },
+    {
+      "code": "ENS 275",
+      "title": "Contemporary Issues in Environment and Development"
+    },
+    {
+      "code": "ENS 296",
+      "title": "Environmental Impact Assessment"
+    }
+  ]
+}
