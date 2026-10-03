@@ -12,7 +12,7 @@ const supabaseClient = (window.supabase && window.IVANA_SUPABASE_URL && window.I
     })
   : null;
 window.ivana.supabase = supabaseClient;
-window.ivana.version='V5.2';
+window.ivana.version='V5.3';
 const isLoginPage = ['0login.html','index.html',''].includes((location.pathname.split('/').pop() || 'index.html'));
 const prototypeMode = ()=>localStorage.getItem('ivana_prototype_mode')==='true';
 
@@ -98,55 +98,17 @@ async function handleLogin(e){
   }
 }
 
-function openAuthModal(mode){
+function openAuthModal(mode='reset'){
   const modal=document.querySelector('#authModal');if(!modal)return;
   modal.hidden=false;
-  const signup=document.querySelector('#signupForm'),reset=document.querySelector('#resetForm');
+  const reset=document.querySelector('#resetForm');
   const eyebrow=document.querySelector('#authModalEyebrow'),title=document.querySelector('#authModalTitle'),intro=document.querySelector('#authModalIntro');
-  if(mode==='reset'){
-    signup.hidden=true;reset.hidden=false;eyebrow.textContent='Reset password';title.textContent='Let’s get you back in.';intro.textContent='Enter your email and Supabase will send you a password reset link.';
-  }else{
-    signup.hidden=false;reset.hidden=true;eyebrow.textContent='Create an account';title.textContent='Begin your study space.';intro.textContent='Create your account and we’ll keep your study space connected to you.';
-  }
+  if(reset)reset.hidden=false;
+  if(eyebrow)eyebrow.textContent='Password reset';
+  if(title)title.textContent='Let’s get you back in.';
+  if(intro)intro.textContent='Accounts are provisioned by the administrator. Enter your email and Supabase will send a password reset link if the account exists.';
 }
 function closeAuthModal(){const modal=document.querySelector('#authModal');if(modal)modal.hidden=true;}
-
-async function handleSignup(e){
-  e.preventDefault();
-  const displayName=document.querySelector('#signupDisplayName')?.value.trim();
-  const email=document.querySelector('#signupEmail')?.value.trim();
-  const password=document.querySelector('#signupPassword')?.value||'';
-  const confirm=document.querySelector('#signupConfirm')?.value||'';
-  const button=document.querySelector('#signupButton'),status=document.querySelector('#signupStatus');
-  if(!displayName){status.textContent='Add the study name Ivana should use for you.';return;}
-  if(password.length<6){status.textContent='Use a password with at least 6 characters.';return;}
-  if(password!==confirm){status.textContent='The passwords do not match.';return;}
-  if(!supabaseClient){status.textContent='Supabase configuration is missing. Check js/supabase-config.js.';return;}
-  button.disabled=true;button.textContent='Creating account…';status.textContent='Connecting to Supabase…';
-  try{
-    const {data,error}=await supabaseClient.auth.signUp({
-      email,
-      password,
-      options:{
-        data:{display_name:displayName},
-        emailRedirectTo:authRedirect()
-      }
-    });
-    if(error)throw error;
-    if(data?.user)await syncProfile(data.user);
-    if(data?.session){
-      localStorage.removeItem('ivana_prototype_mode');
-      location.replace('1index.html');
-      return;
-    }
-    status.textContent='Account created. Check your email to confirm your account, then sign in. If no email arrives, check Supabase Auth → Users.';
-    button.disabled=false;button.textContent='Create account';
-  }catch(error){
-    console.error('Ivana account creation failed:',error);
-    status.textContent=authMessage(error);
-    button.disabled=false;button.textContent='Create account';
-  }
-}
 
 async function handleReset(e){
   e.preventDefault();
@@ -162,92 +124,218 @@ async function handleReset(e){
 }
 
 document.querySelector('#loginForm')?.addEventListener('submit',handleLogin);
-document.querySelector('#createAccountLink')?.addEventListener('click',()=>openAuthModal('signup'));
 document.querySelector('#forgotPasswordLink')?.addEventListener('click',()=>openAuthModal('reset'));
 document.querySelector('#authModalClose')?.addEventListener('click',closeAuthModal);
-document.querySelector('#signupForm')?.addEventListener('submit',handleSignup);
 document.querySelector('#resetForm')?.addEventListener('submit',handleReset);
 document.querySelector('#authModal')?.addEventListener('click',e=>{if(e.target.id==='authModal')closeAuthModal()});
 initAuth();
 
-/* V5.2 clickable prototype entry: lets the learner inspect the study workspace while Auth is being configured. */
+/* V5.4 login refinement: prototype access is not linked from the public login surface. The entry remains hidden inside Forgot Password. */
 if(isLoginPage){
-  const box=document.querySelector('.box');
-  if(box && !document.querySelector('#prototypeLogin')){
-    const wrap=document.createElement('div');wrap.className='prototype-entry';
-    wrap.innerHTML='<div class="prototype-divider"><span>or</span></div><button type="button" class="text-link prototype-link" id="prototypeLogin">Enter clickable prototype</button><small class="prototype-note">Use this while Supabase account setup is being verified.</small>';
-    box.appendChild(wrap);
-    document.querySelector('#prototypeLogin')?.addEventListener('click',()=>{localStorage.setItem('ivana_prototype_mode','true');location.replace('1index.html')});
-  }
+  document.querySelector('#prototypeSecret')?.addEventListener('click',()=>{
+    localStorage.setItem('ivana_prototype_mode','true');
+  });
 }
 
-/* Course configuration: subjects are curriculum structure, not mock study content. */
+/* V5.3 Library — Supabase-backed cross-device source library. */
 let courseConfig=[];
+let resources=[];
+const STORAGE_BUCKET='study-materials';
+let libraryLoaded=false;
+
 async function loadCourses(){
- try{const r=await fetch('data/courses.json',{cache:'no-store'});const j=await r.json();courseConfig=Array.isArray(j?.courses)?j.courses:[];}catch(e){courseConfig=[];}
+ try{const r=await fetch('data/courses.json',{cache:'no-store'});const j=await r.json();courseConfig=Array.isArray(j?.courses)?j.courses:[];}catch(e){courseConfig=[];console.warn('Course configuration could not be loaded.',e)}
  const filter=document.querySelector('#resourceCourseFilter');
  if(filter){filter.innerHTML='<option value="">All courses</option>'+courseConfig.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.title)}</option>`).join('');}
- const sel=document.querySelector('#resourceCourse');
- if(sel){sel.innerHTML=courseConfig.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.title)}</option>`).join('');}
- renderCourses(); renderResources();
+ const sy=document.querySelector('#resourceSyllabusCourse');
+ if(sy){sy.innerHTML='<option value="">Choose course</option>'+courseConfig.map(c=>`<option value="${escapeHtml(c.code)}">${escapeHtml(c.code)} — ${escapeHtml(c.title)}</option>`).join('');}
+ const year=document.querySelector('#resourceSchoolYear');
+ if(year){const years=[];for(let y=2014;y<=2035;y++)years.push(`<option value="${y}-${y+1}">${y}–${y+1}</option>`);year.innerHTML='<option value="">Choose school year</option>'+years.join('');}
+ renderCoursePicker();
+ renderCourses();
+ await loadRemoteResources();
+ renderHome();
+ updateKnowledgeMapState();
 }
+
+function shortDate(value){if(!value)return '—';try{return new Date(value).toLocaleDateString([], {month:'short',day:'numeric'})}catch(e){return '—'}}
+function formatDuration(min){const n=Number(min||0);if(n<60)return `${n} min`;return `${Math.floor(n/60)}h ${n%60}m`}
+function renderHome(){
+ const sourceRefs=resources.filter(r=>r.type!=='syllabus');
+ const allCodes=courseConfig.map(c=>c.code);
+ const hortCodes=allCodes.filter(c=>/^HORT|^CROP SCI/.test(c));
+ const ensCodes=allCodes.filter(c=>/^ENS/.test(c));
+ const covered=new Set(sourceRefs.flatMap(r=>r.courses||[]));
+ const hort=Math.round((hortCodes.filter(c=>covered.has(c)).length/Math.max(1,hortCodes.length))*100);
+ const ens=Math.round((ensCodes.filter(c=>covered.has(c)).length/Math.max(1,ensCodes.length))*100);
+ if($('#homeMapSourceCount'))$('#homeMapSourceCount').textContent=sourceRefs.length;
+ if($('#homeMapSummary'))$('#homeMapSummary').innerHTML=sourceRefs.length?`You have uploaded <strong>${sourceRefs.length}</strong> knowledge-map reference${sourceRefs.length===1?'':'s'} so far. These books, papers, and other knowledge-bearing sources can contribute evidence to your map.`:'No knowledge-map references yet. Add books or papers to begin building the evidence base.';
+ if($('#homeHortCoverage'))$('#homeHortCoverage').textContent=hort+'%'; if($('#homeEnsCoverage'))$('#homeEnsCoverage').textContent=ens+'%';
+ if($('#homeHortBar'))$('#homeHortBar').style.width=hort+'%'; if($('#homeEnsBar'))$('#homeEnsBar').style.width=ens+'%';
+ const latest=[...resources].sort((a,b)=>String(b.addedAt||'').localeCompare(String(a.addedAt||''))).slice(0,5);
+ const list=$('#homeLatestResources');
+ if(list)list.innerHTML=latest.length?latest.map(r=>`<div class="home-list-row"><div><strong>${escapeHtml(r.title||r.fileName||'Untitled source')}</strong><span>${escapeHtml(sourceTypeName(r.type))}${r.courses?.length?' · '+escapeHtml(r.courses.join(', ')):''}</span></div><time>${shortDate(r.addedAt)}</time></div>`).join(''):'<div class="home-empty">No materials uploaded yet.</div>';
+ const sessions=load('timerSessions',[]); const last=sessions.length?sessions[sessions.length-1]:null; const ss=$('#homeSessionState');
+ if(ss)ss.innerHTML=last?`<strong>${escapeHtml(last.end||last.start||'Recent')}</strong><span>Last study time<br><b>${formatDuration(last.focus)}</b></span>`:'<strong>—</strong><span>No study session recorded yet.</span>';
+ const mastery=$('#homeMasteryLevels');
+ if(mastery){const tests=Number(load('correct',0));mastery.innerHTML=[['Recognition','Level 1'],['Retrieval','Level 2'],['Synthesis','Level 3']].map(x=>`<div class="mastery-row"><div class="mastery-level">${x[1]} · ${x[0]}</div><div class="mastery-pill"><span class="mastery-dot"></span><strong>${tests?'Developing':'Not tested yet'}</strong></div></div>`).join('');}
+}
+
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function courseName(code){const c=courseConfig.find(x=>x.code===code);return c?`${c.code} — ${c.title}`:(code||'Unassigned');}
 function courseGroup(code){return /^HORT|^CROP SCI/.test(code)?'course-hortcrsc':/^ENS/.test(code)?'course-ens':''}
 function renderCourses(){
- const list=document.querySelector('#courseList'); if(!list)return;
- list.innerHTML=courseConfig.map(c=>`<div class="course-item ${courseGroup(c.code)}"><div><div class="course-code">${escapeHtml(c.code)}</div><div class="course-title">${escapeHtml(c.title)}</div></div><div class="course-status">No study materials yet</div></div>`).join('');
+ const list=document.querySelector('#courseList');if(!list)return;
+ list.innerHTML=courseConfig.map(c=>{
+   const syllabus=resources.find(r=>r.type==='syllabus'&&(r.course===c.code||r.courses?.includes(c.code)));
+   const status=syllabus?`<div class="course-status"><span class="course-syllabus-badge">Syllabus added</span></div>`:`<div class="course-status">No syllabus yet</div>`;
+   return `<div class="course-item ${courseGroup(c.code)}"><div><div class="course-code">${escapeHtml(c.code)}</div><div class="course-title">${escapeHtml(c.title)}</div>${syllabus?`<div class="course-syllabus-mini">${escapeHtml(syllabus.schoolYear||'')} ${syllabus.semester?'· '+escapeHtml(syllabus.semester):''}</div>`:''}</div>${status}</div>`;
+ }).join('');
+ renderClassroomSyllabi();
 }
-function selectedCourses(){return Array.from(document.querySelector('#resourceCourse')?.selectedOptions||[]).map(o=>o.value).filter(Boolean)}
+function renderClassroomSyllabi(){
+ const box=document.querySelector('#classroomSyllabusList');if(!box)return;
+ const syllabi=resources.filter(r=>r.type==='syllabus');
+ if(!syllabi.length){box.innerHTML='<div class="classroom-empty">Add a syllabus in Library to anchor a classroom and use it as your course coverage lens.</div>';return;}
+ box.innerHTML=syllabi.map(r=>{
+   const course=r.course||r.courses?.[0]||'';
+   return `<div class="classroom-syllabus"><div class="classroom-syllabus-meta"><div class="classroom-syllabus-title">${escapeHtml(courseName(course))}</div><div class="classroom-syllabus-details">${escapeHtml(r.institution||'')} ${r.schoolYear?'· '+escapeHtml(r.schoolYear):''} ${r.semester?'· '+escapeHtml(r.semester):''} ${r.instructor?'· '+escapeHtml(r.instructor):''}</div><div class="classroom-syllabus-note">Course lens only · open the syllabus to check topics and objectives while studying.</div></div><button class="btn outline small" data-open-syllabus="${escapeHtml(r.id)}">Open syllabus</button></div>`;
+ }).join('');
+ box.querySelectorAll('[data-open-syllabus]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openSyllabus));location.href='3study.html'}));
+}
+function renderCoursePicker(){
+ const picker=document.querySelector('#resourceCoursePicker');if(!picker)return;
+ picker.innerHTML=courseConfig.map(c=>`<label class="course-choice ${courseGroup(c.code)}"><input type="checkbox" value="${escapeHtml(c.code)}"><span><strong>${escapeHtml(c.code)}</strong><span>${escapeHtml(c.title)}</span></span></label>`).join('');
+}
+function selectedCourses(){return Array.from(document.querySelectorAll('#resourceCoursePicker input[type="checkbox"]:checked')).map(x=>x.value).filter(Boolean)}
+function setSelectedCourses(codes=[]){const set=new Set(codes);document.querySelectorAll('#resourceCoursePicker input[type="checkbox"]').forEach(x=>x.checked=set.has(x.value));}
 function sourceTypeName(t){return ({syllabus:'Syllabus',book:'Book / book chapter',research_paper:'Research paper',other:'Other academic source'})[t]||'Source'}
-let resources=load('resources',[]);
+function isAuthenticated(){return Boolean(supabaseClient?.auth?.getSession)}
+function currentUserId(){return supabaseClient?.auth?.getUser ? null : null}
+
+async function getCurrentSession(){
+ if(!supabaseClient)return null;
+ try{const {data,error}=await supabaseClient.auth.getSession();if(error)throw error;return data?.session||null}catch(e){console.warn('Ivana could not read the current session.',e);return null}
+}
+
+function normalizeResource(row){
+ return {id:row.id,title:row.title||row.file_name||'Untitled source',type:row.source_type||row.type||'other',inputMode:row.input_mode||'file',fileName:row.file_name||'',storagePath:row.storage_path||'',mimeType:row.mime_type||'',size:Number(row.size_bytes||0),courses:Array.isArray(row.courses)?row.courses:(row.course_code?[row.course_code]:[]),course:row.course_code||'',author:row.author||'',year:row.year||'',edition:row.edition||'',publisher:row.publisher||'',institution:row.institution||'',schoolYear:row.school_year||'',semester:row.semester||'',instructor:row.instructor||'',toc:row.toc||'',text:row.content_text||'',html:row.content_html||'',inMap:row.in_map!==false,addedAt:row.created_at||row.added_at||''};
+}
+async function loadRemoteResources(){
+ const list=document.querySelector('#libraryList');
+ if(!supabaseClient){libraryLoaded=true;resources=[];renderResources();return;}
+ const session=await getCurrentSession();
+ if(!session){libraryLoaded=true;resources=[];renderResources();return;}
+ try{
+   const {data,error}=await supabaseClient.from('resources').select('*').order('created_at',{ascending:false});
+   if(error)throw error;
+   resources=(data||[]).map(normalizeResource);libraryLoaded=true;renderResources();
+ }catch(e){
+   console.error('Ivana Library load failed:',e);resources=[];libraryLoaded=true;
+   if(list)list.innerHTML='<div class="library-message error"><h2>Library could not be loaded.</h2><p>'+escapeHtml(e.message||'Check that the V5.3 Library migration has been applied to Supabase.')+'</p><small>Your files are not deleted; Ivana simply could not read the Library database.</small></div>';
+   renderReferenceRegister();
+ }
+}
 function renderReferenceRegister(){
  const body=$('#referenceTable');if(!body)return;
  if(!resources.length){body.innerHTML='<tr><td colspan="6">No sources added yet.</td></tr>';return}
- body.innerHTML=resources.slice().sort((a,b)=>String(b.addedAt||'').localeCompare(String(a.addedAt||''))).map(r=>`<tr><td>${escapeHtml(sourceTypeName(r.type))}</td><td>${escapeHtml(r.author||'—')}</td><td>${escapeHtml(r.year||'—')}</td><td>${escapeHtml(r.title||'—')}</td><td>${escapeHtml(r.courses?.length?r.courses.map(courseName).join(' · '):'Unassigned')}</td><td>${r.type==='syllabus'?'<span class="map-lens">Course lens only</span>':'<span class="map-eligible">Eligible</span>'}</td></tr>`).join('');
+ body.innerHTML=resources.map(r=>`<tr><td>${escapeHtml(sourceTypeName(r.type))}</td><td>${escapeHtml(r.author||r.institution||'—')}</td><td>${escapeHtml(r.year||r.schoolYear||'—')}</td><td>${escapeHtml(r.title||'—')}</td><td>${escapeHtml(r.courses?.length?r.courses.map(courseName).join(' · '):'Unassigned')}</td><td>${r.type==='syllabus'?'<span class="map-lens">Course lens only</span>':'<span class="map-eligible">Eligible</span>'}</td></tr>`).join('');
 }
 function renderResources(){
- const list=document.querySelector('#libraryList'); if(!list)return;
+ const list=document.querySelector('#libraryList');if(!list)return;
  const filter=document.querySelector('#resourceCourseFilter')?.value||'';
  const q=(document.querySelector('#resourceSearch')?.value||'').toLowerCase().trim();
- const shown=resources.filter(r=>(!filter||r.courses?.includes(filter)||r.course===filter)&&(!q||`${r.title} ${r.fileName||''} ${r.type||''} ${(r.courses||[]).join(' ')} ${r.author||''} ${r.year||''}`.toLowerCase().includes(q)));
+ const shown=resources.filter(r=>(!filter||r.courses?.includes(filter)||r.course===filter)&&(!q||`${r.title} ${r.fileName||''} ${r.type||''} ${(r.courses||[]).join(' ')} ${r.author||''} ${r.institution||''} ${r.year||''} ${r.schoolYear||''}`.toLowerCase().includes(q)));
  if(!shown.length){list.innerHTML='<div class="empty-icon">＋</div><h2>Your library is empty.</h2><p>Add a source to begin building your private study library.</p>';renderReferenceRegister();return}
- list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):''}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div>${r.author?`<div class="resource-biblio">${escapeHtml(r.author)}${r.year?' · '+escapeHtml(r.year):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div>`:''}<div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${r.id}">Open</button><button class="btn outline small" data-delete-resource="${r.id}">Remove</button></div></div>`).join('')+'</div>';
+ list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):' · Stored in Ivana'}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div><div class="resource-biblio">${escapeHtml(r.author||r.institution||'')}${r.year?' · '+escapeHtml(r.year):''}${r.schoolYear?' · '+escapeHtml(r.schoolYear):''}${r.semester?' · '+escapeHtml(r.semester):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div><div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}${r.fileName?' · Cloud stored':''}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${escapeHtml(r.id)}">Open</button><button class="btn outline small" data-delete-resource="${escapeHtml(r.id)}">Remove</button></div></div>`).join('')+'</div>';
  list.querySelectorAll('[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openResource));location.href='3study.html'}));
- list.querySelectorAll('[data-delete-resource]').forEach(b=>b.addEventListener('click',async()=>{const id=Number(b.dataset.deleteResource);await deleteSource(id);resources=resources.filter(r=>Number(r.id)!==id);save('resources',resources);renderResources();}));
+ list.querySelectorAll('[data-delete-resource]').forEach(b=>b.addEventListener('click',async()=>{await deleteRemoteResource(String(b.dataset.deleteResource));}));
  renderReferenceRegister();
+ renderCourses();
+ renderHome();
 }
 function currentSourceTitle(){
  const type=$('#resourceType')?.value||'';
- if(type==='book')return $('#resourceTitle')?.value.trim()||$('#resourceTitleFallback')?.value.trim()||'';
- if(type==='research_paper')return $('#resourceTitlePaper')?.value.trim()||$('#resourceTitleFallback')?.value.trim()||'';
- if(type==='syllabus')return $('#resourceTitleSyllabus')?.value.trim()||$('#resourceTitleFallback')?.value.trim()||'';
- if(type==='other')return $('#resourceTitleOther')?.value.trim()||$('#resourceTitleFallback')?.value.trim()||'';
- return $('#resourceTitleFallback')?.value.trim()||'';
+ if(type==='book')return $('#resourceTitle')?.value.trim()||'';
+ if(type==='research_paper')return $('#resourceTitlePaper')?.value.trim()||'';
+ if(type==='syllabus'){const c=$('#resourceSyllabusCourse')?.value||'';return c?courseName(c):''}
+ if(type==='other')return $('#resourceTitleOther')?.value.trim()||'';
+ return '';
 }
 function updateSourceFields(){
  const type=$('#resourceType')?.value||'';
- ['bookFields','paperFields','otherFields','syllabusFields'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=(id!==({book:'bookFields',research_paper:'paperFields',other:'otherFields',syllabus:'syllabusFields'}[type]||''));});
- const bio=$('#bibliographicFields'); if(bio)bio.hidden=!type;
- const titleFallback=$('#resourceTitleFallback'); if(titleFallback)titleFallback.hidden=!!type;
+ const map={book:'bookFields',research_paper:'paperFields',other:'otherFields',syllabus:'syllabusFields'};
+ ['bookFields','paperFields','otherFields','syllabusFields'].forEach(id=>{const el=document.getElementById(id);if(el)el.hidden=(id!==map[type]);});
+ const bio=$('#bibliographicFields');if(bio)bio.hidden=!type;
+ const relevance=$('#courseRelevanceBlock');const label=$('#courseRelevanceLabel');
+ if(type==='syllabus'){if(relevance)relevance.style.display='none';}else{if(relevance)relevance.style.display='block';if(label)label.textContent='Course relevance';}
+ if(type==='syllabus'){
+   const sy=$('#resourceSyllabusCourse');if(sy?.value)setSelectedCourses([sy.value]);
+ }
 }
+function validateSourceFields(type,inputMode,file,pastedText){
+ if(!type)return 'Choose a source type first.';
+ if(type==='syllabus'){
+   if(!$('#resourceInstitution')?.value.trim())return 'Add the institution or school.';
+   if(!$('#resourceSchoolYear')?.value)return 'Choose the school year.';
+   if(!$('#resourceSemester')?.value)return 'Choose the semester.';
+   if(!$('#resourceSyllabusCourse')?.value)return 'Choose the course.';
+   if(!$('#resourceInstructor')?.value.trim())return 'Add the instructor or coordinator.';
+ }else if(type==='book'){
+   if(!$('#resourceAuthor')?.value.trim())return 'Add the author or authors.';
+   if(!$('#resourceYear')?.value.trim())return 'Add the publication year.';
+   if(!$('#resourceTitle')?.value.trim())return 'Add the book or chapter title.';
+   if(!selectedCourses().length)return 'Select at least one course relevance.';
+ }else if(type==='research_paper'){
+   if(!$('#resourceAuthorPaper')?.value.trim())return 'Add the author or authors.';
+   if(!$('#resourceYearPaper')?.value.trim())return 'Add the publication year.';
+   if(!$('#resourceTitlePaper')?.value.trim())return 'Add the paper title.';
+   if(!selectedCourses().length)return 'Select at least one course relevance.';
+ }else if(type==='other'&&!$('#resourceTitleOther')?.value.trim())return 'Add a title for this source.';
+ if(inputMode==='file'&&!file)return 'Choose a file first.';
+ if(inputMode==='text'&&!pastedText)return 'Paste or type the source text first.';
+ if(file && file.size>100*1024*1024)return 'This prototype accepts files up to 100 MB.';
+ return '';
+}
+function safeFileName(name){return String(name||'file').replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-180)}
 async function addResource(){
- const type=$('#resourceType')?.value||''; const inputMode=$('#inputMode')?.value||'file'; const file=$('#resourceFile')?.files?.[0]; const rich=$('#resourceText'); const pastedHtml=inputMode==='text'?(rich?.innerHTML||'').trim():''; const pastedText=inputMode==='text'?(rich?.innerText||'').trim():''; const title=currentSourceTitle() || file?.name || (pastedText?'Copied text':''); const courses=selectedCourses(); const status=$('#sourceFormStatus');
- if(!type){if(status)status.textContent='Choose a source type first.';return}
- if(type==='syllabus'&&!courses.length){if(status)status.textContent='Select the course this syllabus belongs to.';return}
- if(inputMode==='file'&&!file){if(status)status.textContent='Choose a file first.';return}
- if(inputMode==='text'&&!pastedText){if(status)status.textContent='Paste or type the source text first.';return}
- if(!title){if(status)status.textContent='Add a title.';return}
- const record={id:Date.now(),title,type,inputMode,fileName:file?.name||'',courses,course:courses[0]||'',size:file?.size||0,mimeType:file?.type||'text/html',blob:file||null,text:pastedText||'',html:pastedHtml||'',author:$('#resourceAuthor')?.value.trim()||'',year:$('#resourceYear')?.value.trim()||'',edition:$('#resourceEdition')?.value.trim()||'',publisher:$('#resourcePublisher')?.value.trim()||'',toc:$('#resourceToc')?.value.trim()||'',inMap:type!=='syllabus',addedAt:new Date().toISOString()};
- try{await putSource(record);resources.push({...record,blob:undefined,html:undefined,text:undefined});save('resources',resources);const modal=$('#addSourceBox');if(modal)modal.style.display='none';resetSourceForm();renderResources();if(status)status.textContent='';}
- catch(e){console.error(e);if(status)status.textContent='Could not save this source in the browser.'}
+ const type=$('#resourceType')?.value||'';const inputMode=$('#inputMode')?.value||'file';const file=$('#resourceFile')?.files?.[0];const rich=$('#resourceText');const pastedHtml=inputMode==='text'?(rich?.innerHTML||'').trim():'';const pastedText=inputMode==='text'?(rich?.innerText||'').trim():'';const status=$('#sourceFormStatus');
+ const validation=validateSourceFields(type,inputMode,file,pastedText);if(validation){if(status)status.textContent=validation;return}
+ const session=await getCurrentSession();if(!session){if(status)status.textContent='Please sign in before adding a source.';return}
+ const id=(crypto?.randomUUID?crypto.randomUUID():`r_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+ const syllabusCourse=$('#resourceSyllabusCourse')?.value||'';const courses=type==='syllabus'?[syllabusCourse]:selectedCourses();
+ const title=currentSourceTitle()||file?.name||(pastedText?'Copied text':'Untitled source');
+ const record={id,title,type,inputMode,fileName:file?.name||'',courses,course:courses[0]||'',size:file?.size||0,mimeType:file?.type||'text/html',author:type==='research_paper'?$('#resourceAuthorPaper')?.value.trim():$('#resourceAuthor')?.value.trim()||'',year:type==='research_paper'?$('#resourceYearPaper')?.value.trim():$('#resourceYear')?.value.trim()||'',edition:$('#resourceEdition')?.value.trim()||'',publisher:$('#resourcePublisher')?.value.trim()||'',institution:$('#resourceInstitution')?.value.trim()||'',schoolYear:$('#resourceSchoolYear')?.value||'',semester:$('#resourceSemester')?.value||'',instructor:$('#resourceInstructor')?.value.trim()||'',toc:$('#resourceToc')?.value.trim()||'',inMap:type!=='syllabus',text:pastedText,html:pastedHtml,storagePath:''};
+ let uploaded=false;
+ try{
+   if(status)status.textContent=file?'Uploading source to your Ivana Library…':'Saving source to your Ivana Library…';
+   if(file){record.storagePath=`${session.user.id}/${id}/${safeFileName(file.name)}`;const {error:upError}=await supabaseClient.storage.from(STORAGE_BUCKET).upload(record.storagePath,file,{contentType:file.type||'application/octet-stream',upsert:false});if(upError)throw upError;uploaded=true;}
+   const payload={id:record.id,owner_id:session.user.id,source_type:record.type,input_mode:record.inputMode,title:record.title,file_name:record.fileName,storage_path:record.storagePath||null,mime_type:record.mimeType,size_bytes:record.size,author:record.author||null,year:record.year||null,edition:record.edition||null,publisher:record.publisher||null,institution:record.institution||null,school_year:record.schoolYear||null,semester:record.semester||null,course_code:record.course||null,courses:record.courses, instructor:record.instructor||null,toc:record.toc||null,content_text:record.text||null,content_html:record.html||null,in_map:record.inMap};
+   const {data,error}=await supabaseClient.from('resources').insert(payload).select('*').single();if(error)throw error;
+   resources.unshift(normalizeResource(data));renderResources();const modal=$('#addSourceBox');if(modal)modal.style.display='none';resetSourceForm();if(status)status.textContent='';
+ }catch(e){
+   console.error('Ivana source upload failed:',e);
+   if(uploaded&&record.storagePath){try{await supabaseClient.storage.from(STORAGE_BUCKET).remove([record.storagePath])}catch(cleanup){console.warn('Storage cleanup failed',cleanup)}}
+   if(status)status.textContent=`Could not add this source: ${e.message||'The upload did not complete.'}`;
+ }
 }
-function resetSourceForm(){
- const f=$('#resourceFile');if(f)f.value='';const rich=$('#resourceText');if(rich)rich.innerHTML='';['resourceType','resourceTitleFallback','resourceAuthor','resourceYear','resourceEdition','resourceTitle','resourceTitlePaper','resourcePublisher','resourceTitleOther','resourceTitleSyllabus','resourceInstructor','resourceToc'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});const c=$('#resourceCourse');if(c)Array.from(c.options).forEach(o=>o.selected=false);if($('#hasToc'))$('#hasToc').checked=false;if($('#tocWrap'))$('#tocWrap').hidden=true;updateSourceFields();}
+async function deleteRemoteResource(id){
+ const resource=resources.find(r=>String(r.id)===String(id));if(!resource)return;
+ if(!confirm(`Remove “${resource.title}” from your Ivana Library?`))return;
+ try{
+   if(resource.storagePath)await supabaseClient.storage.from(STORAGE_BUCKET).remove([resource.storagePath]);
+   const {error}=await supabaseClient.from('resources').delete().eq('id',resource.id);if(error)throw error;
+   resources=resources.filter(r=>String(r.id)!==String(id));renderResources();
+ }catch(e){alert(`Could not remove this source. ${e.message||''}`)}
+}
+async function resetSourceForm(){
+ const f=$('#resourceFile');if(f)f.value='';const rich=$('#resourceText');if(rich)rich.innerHTML='';['resourceType','resourceAuthor','resourceAuthorPaper','resourceYear','resourceYearPaper','resourceEdition','resourceTitle','resourceTitlePaper','resourcePublisher','resourceTitleOther','resourceInstitution','resourceInstructor','resourceSchoolYear','resourceSemester','resourceSyllabusCourse','resourceToc'].forEach(id=>{const el=$('#'+id);if(el)el.value=''});setSelectedCourses([]);if($('#hasToc'))$('#hasToc').checked=false;if($('#tocWrap'))$('#tocWrap').hidden=true;updateSourceFields();
+}
 $('#addSourceButton')?.addEventListener('click',()=>{$('#addSourceBox').style.display='flex';updateSourceFields()});
 $('#closeAddSource')?.addEventListener('click',()=>{$('#addSourceBox').style.display='none'});
 $('#addSourceBox')?.addEventListener('click',e=>{if(e.target.id==='addSourceBox')e.currentTarget.style.display='none'});
 $('#resourceType')?.addEventListener('change',updateSourceFields);
+$('#resourceSyllabusCourse')?.addEventListener('change',()=>{if($('#resourceType')?.value==='syllabus')setSelectedCourses([$('#resourceSyllabusCourse').value])});
 $('#inputMode')?.addEventListener('change',e=>{const text=e.target.value==='text';if($('#fileInputWrap'))$('#fileInputWrap').style.display=text?'none':'';if($('#textInputWrap'))$('#textInputWrap').style.display=text?'':'none';});
 $('#hasToc')?.addEventListener('change',e=>{if($('#tocWrap'))$('#tocWrap').hidden=!e.target.checked});
 $('#addResource')?.addEventListener('click',addResource);
@@ -257,19 +345,24 @@ $('#resourceSearch')?.addEventListener('input',renderResources);$('#resourceCour
 let activeSourceRecord=null, pdfDoc=null, pdfPageNumber=1, pdfScale=1, activeAnnotationTool='yellow';
 async function openStudyResource(){
  const reader=document.querySelector('#readerEmpty');if(!reader)return;
- const wrap=$('#pdfPageWrap'), metaId=Number(localStorage.getItem('ivana_currentResource')||0);if(!metaId)return;
- try{const record=await getSource(metaId);activeSourceRecord=record;if(!record){reader.innerHTML='<span>Source not found</span>';return}
-  $('#readerDocName').textContent=record.title||record.fileName||'Source';
-  if(record.text || record.html){
-    reader.hidden=true;wrap.hidden=false;$('#pdfPage').innerHTML='<div class="source-text-view">'+(record.html||escapeHtml(record.text||''))+'</div>';$('#pageCount').textContent='1';$('#pageNum').textContent='1';return;
-  }
-  if(record.blob && ((record.mimeType||'').includes('pdf')||(record.fileName||'').toLowerCase().endsWith('.pdf'))){
-    if(!window.pdfjsLib){reader.innerHTML='<span>PDF reader is unavailable.</span>';return}
-    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const bytes=await record.blob.arrayBuffer();pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;pdfPageNumber=1;pdfScale=1;$('#pageCount').textContent=pdfDoc.numPages;reader.hidden=true;wrap.hidden=false;await renderPdfPage();return;
-  }
-  reader.innerHTML='<span>This file is stored in your library.</span><a class="btn primary" href="'+URL.createObjectURL(record.blob)+'" download="'+escapeHtml(record.fileName||record.title)+'">Open / download file</a><small>DOC/DOCX content extraction will be handled by the Supabase ingestion layer.</small>';
- }catch(e){console.error(e);reader.hidden=false;reader.innerHTML='<span>Could not open this source.</span><small>'+escapeHtml(e.message||'Unknown reader error')+'</small>'}
+ const wrap=$('#pdfPageWrap'), metaId=String(localStorage.getItem('ivana_currentResource')||'');if(!metaId)return;
+ try{
+   const session=await getCurrentSession();if(!session){reader.innerHTML='<span>Please sign in to open this source.</span>';return}
+   const {data,error}=await supabaseClient.from('resources').select('*').eq('id',metaId).single();if(error)throw error;
+   activeSourceRecord=normalizeResource(data);$('#readerDocName').textContent=activeSourceRecord.title||activeSourceRecord.fileName||'Source';
+   if(activeSourceRecord.text||activeSourceRecord.html){reader.hidden=true;wrap.hidden=false;$('#pdfPage').innerHTML='<div class="source-text-view">'+(activeSourceRecord.html||escapeHtml(activeSourceRecord.text||''))+'</div>';$('#pageCount').textContent='1';$('#pageNum').textContent='1';return;}
+   if(activeSourceRecord.storagePath){
+     if(activeSourceRecord.mimeType.includes('pdf')||activeSourceRecord.fileName.toLowerCase().endsWith('.pdf')){
+       if(!window.pdfjsLib){reader.innerHTML='<span>PDF reader is unavailable.</span>';return}
+       const {data:file,error:fileError}=await supabaseClient.storage.from(STORAGE_BUCKET).download(activeSourceRecord.storagePath);if(fileError)throw fileError;
+       pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+       const bytes=await file.arrayBuffer();pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;pdfPageNumber=1;pdfScale=1;$('#pageCount').textContent=pdfDoc.numPages;reader.hidden=true;wrap.hidden=false;await renderPdfPage();return;
+     }
+     const {data:urlData,error:urlError}=await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(activeSourceRecord.storagePath,600);if(urlError)throw urlError;
+     reader.innerHTML='<span>This file is stored in your private Ivana Library.</span><a class="btn primary" href="'+urlData.signedUrl+'" target="_blank" rel="noopener">Open file</a><small>DOC/DOCX content extraction will be handled by the Supabase ingestion layer.</small>';return;
+   }
+   reader.innerHTML='<span>This source has no stored file.</span>';
+ }catch(e){console.error('Ivana source open failed:',e);reader.hidden=false;reader.innerHTML='<span>Could not open this source.</span><small>'+escapeHtml(e.message||'Unknown reader error')+'</small>'}
 }
 async function renderPdfPage(){
  if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPageNumber);const base=page.getViewport({scale:1});const viewport=page.getViewport({scale:pdfScale});const canvas=$('#pdfCanvas'),ctx=canvas.getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;$('#pdfPage').style.width=viewport.width+'px';$('#pdfPage').style.height=viewport.height+'px';await page.render({canvasContext:ctx,viewport}).promise;
@@ -279,12 +372,19 @@ async function renderPdfPage(){
 }
 function selectionRects(){const sel=window.getSelection();if(!sel||sel.isCollapsed||!$('#pdfPage')?.contains(sel.anchorNode))return null;const rects=Array.from(sel.getRangeAt(0).getClientRects());const pageRect=$('#pdfPage').getBoundingClientRect();return {text:sel.toString().trim(),rects:rects.map(r=>({x:(r.left-pageRect.left)/pdfScale,y:(r.top-pageRect.top)/pdfScale,w:r.width/pdfScale,h:r.height/pdfScale})).filter(r=>r.w>1&&r.h>1)};}
 function applyAnnotation(tool){const a=selectionRects();if(!a?.text){$('#readerStatus').textContent='Select text in the PDF first, then choose an annotation tool.';return;}const store=load('annotations',[]);store.push({resourceId:activeSourceRecord?.id,page:pdfPageNumber,type:tool,text:a.text,rects:a.rects,note:tool==='note'?prompt('Add a note for this selection:',''):''});save('annotations',store);window.getSelection()?.removeAllRanges();restoreAnnotations();$('#readerStatus').textContent=tool==='note'?'Note saved to this selection.':(tool==='underline'?'Underline added.':'Highlight added.');}
-function restoreAnnotations(){const layer=$('#annotationLayer');if(!layer)return;layer.innerHTML='';const anns=load('annotations',[]).filter(a=>Number(a.resourceId)===Number(activeSourceRecord?.id)&&Number(a.page)===pdfPageNumber);const colors={yellow:'#f5df6d',blue:'#8fb7db',green:'#9fb99b',orange:'#e6a267',red:'#c77d76',purple:'#a58ac0'};anns.forEach(a=>a.rects.forEach(r=>{const el=document.createElement('div');el.className='annotation-mark '+(a.type==='underline'?'annotation-underline':'');el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';if(a.type!=='underline')el.style.background=colors[a.type]||colors.yellow;el.title=a.note||a.text;layer.appendChild(el)}));}
+function restoreAnnotations(){const layer=$('#annotationLayer');if(!layer)return;layer.innerHTML='';const anns=load('annotations',[]).filter(a=>Number(a.resourceId)===Number(activeSourceRecord?.id)&&Number(a.page)===pdfPageNumber);const colors={yellow:'#e5cf61',blue:'#7ea8c8',green:'#86a989',red:'#c4776d'};anns.forEach(a=>a.rects.forEach(r=>{const el=document.createElement('div');el.className='annotation-mark annotation-'+a.type+' '+(a.type==='underline'?'annotation-underline':'');el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';if(a.type!=='underline')el.style.background=colors[a.type]||colors.yellow;el.title=a.note||a.text;layer.appendChild(el)}));}
 document.querySelectorAll('[data-annotation-tool]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-annotation-tool]').forEach(x=>x.classList.remove('active'));btn.classList.add('active');activeAnnotationTool=btn.dataset.annotationTool;applyAnnotation(activeAnnotationTool)}));
 $('#prevPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage()}});$('#nextPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber<pdfDoc.numPages){pdfPageNumber++;await renderPdfPage()}});
 $('#zoomIn')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.min(2.5,pdfScale+.1);await renderPdfPage()}});$('#zoomOut')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.max(.5,pdfScale-.1);await renderPdfPage()}});$('#fitWidth')?.addEventListener('click',async()=>{if(pdfDoc){const p=await pdfDoc.getPage(pdfPageNumber);const v=p.getViewport({scale:1});const available=Math.max(320,($('#readerViewport')?.clientWidth||900)-38);pdfScale=available/v.width;await renderPdfPage()}});
 $('#readerViewport')?.addEventListener('mouseup',()=>{if(activeAnnotationTool&&activeAnnotationTool!=='none'){const a=selectionRects();if(a?.text)$('#readerStatus').textContent='Selection ready. Choose an annotation tool to apply it.'}});
 openStudyResource();
+
+
+/* Remember + Guide is deliberately study-page only. */
+const guide=document.querySelector('#rememberGuide');
+const guideClose=document.querySelector('#rememberGuideClose');
+if(guideClose)guideClose.addEventListener('click',()=>{guide.hidden=true;save('rememberGuideClosed',true)});
+if(guide && load('rememberGuideClosed',false)!==true)guide.hidden=false;
 
 /* Study timer — persistent across pages */
 const timerDefaults={sec:1800,mode:'Focus',running:false,endAt:null,sessionStart:null,initialSec:1800};
@@ -327,7 +427,15 @@ setInterval(()=>{if(!running||idleTriggered)return;if(Date.now()-lastActivity>45
 document.querySelectorAll('.side-tab').forEach(btn=>btn.addEventListener('click',()=>{const key=btn.dataset.tab;document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.side-panel').forEach(p=>p.hidden=p.dataset.panel!==key)}));
 const notes=$('#personalNotes');if(notes){notes.value=load('personalNotes','');$('#saveNotes')?.addEventListener('click',()=>{save('personalNotes',notes.value);if($('#saveStatus'))$('#saveStatus').textContent='Saved locally.'})}
 
-if($('#sessions')){$('#sessions').textContent=load('sessions',0);$('#focusMinutes').textContent=load('focusMinutes',0)+' min';$('#correct').textContent=load('correct',0);const rows=load('timerSessions',[]),body=$('#sessionTable');if(rows.length&&body)body.innerHTML=rows.slice().reverse().map((s,i)=>`<tr><td>${rows.length-i}</td><td>${s.start}</td><td>${s.end}</td><td>${s.focus} min</td><td>${s.break} min</td><td>${s.status}</td></tr>`).join('')}
+function renderProgressSessions(){
+ if(!$('#sessions'))return;
+ const rows=load('timerSessions',[]);$('#sessions').textContent=rows.length;$('#focusMinutes').textContent=rows.reduce((a,s)=>a+Number(s.focus||0),0)+' min';$('#correct').textContent=load('correct',0);
+ const body=$('#sessionTable');if(!body)return;
+ if(!rows.length){body.innerHTML='<tr><td colspan="7">No completed sessions yet.</td></tr>';return}
+ body.innerHTML=rows.slice().reverse().map((s,i)=>`<tr><td>${rows.length-i}</td><td>${escapeHtml(s.start)}</td><td>${escapeHtml(s.end)}</td><td>${Number(s.focus||0)} min</td><td>${Number(s.break||0)} min</td><td>${escapeHtml(s.status||'Completed')}</td><td><button class="table-delete" type="button" data-delete-session="${i}">Delete</button></td></tr>`).join('');
+ body.querySelectorAll('[data-delete-session]').forEach(btn=>btn.addEventListener('click',()=>{const visibleIndex=Number(btn.dataset.deleteSession);const originalIndex=rows.length-1-visibleIndex;if(!confirm('Delete this study session from Progress?'))return;rows.splice(originalIndex,1);save('timerSessions',rows);save('sessions',rows.length);save('focusMinutes',rows.reduce((a,s)=>a+Number(s.focus||0),0));renderProgressSessions();}));
+}
+renderProgressSessions()
 
 
 function updateKnowledgeMapState(){const canvas=$('#knowledgeCanvas');if(!canvas)return;const eligible=resources.filter(r=>r.type!=='syllabus');if(!eligible.length){canvas.classList.add('empty-map');canvas.innerHTML='<div class="map-empty-message"><div class="empty-icon">✦</div><h2>Your map is empty.</h2><p>Syllabi define the course lens, but they do not become knowledge-map concepts by themselves. Add a book, paper, or other knowledge-bearing reference to begin.</p></div>';return;}canvas.classList.add('empty-map');canvas.innerHTML='<div class="map-empty-message"><div class="empty-icon">✦</div><h2>Reference material is ready.</h2><p>'+eligible.length+' knowledge-bearing source'+(eligible.length===1?'':'s')+' can contribute evidence to the map. Concepts and relationships will appear after Ivana processes the material.</p></div>';}
