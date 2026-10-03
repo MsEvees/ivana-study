@@ -150,3 +150,18 @@ a{text-decoration:none;color:inherit}button,input,textarea,select{font:inherit}b
 #rememberGuide{display:block !important;}
 .remember-guide-head button{font-size:17px;min-width:20px;cursor:pointer;}
 @media(max-width:850px){.study-float-dock{width:230px;max-width:calc(100vw - 28px);}.study-float-dock .timer-device,.study-float-dock .inspire-device,.study-float-dock .inspire-card,.study-float-dock .inspire-button{width:100%;}}
+
+/* V5.4 locked floating tools: timer and Inspire Me are two separate boxes in one movable dock. */
+.study-float-dock{position:fixed!important;right:18px;bottom:18px;width:230px!important;z-index:60;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;pointer-events:none;}
+.study-float-dock .float-device{position:relative!important;right:auto!important;bottom:auto!important;left:auto!important;top:auto!important;width:230px!important;box-sizing:border-box;pointer-events:auto;user-select:none;}
+.study-float-dock .timer-device{min-height:118px;padding:12px 14px 10px 18px;background:#fff3a6;border:0;border-radius:7px 5px 9px 6px;box-shadow:5px 8px 20px rgba(50,47,35,.19);transform:none;display:grid;grid-template-columns:92px 1fr;grid-template-rows:auto auto auto;column-gap:12px;align-items:center;}
+.study-float-dock .timer-device-main{grid-row:1 / span 2;text-align:center;padding-top:1px;}
+.study-float-dock .postit-actions{display:flex;justify-content:center;align-items:center;gap:5px;flex-wrap:wrap;margin-top:0;}
+.study-float-dock .postit-status{grid-column:2;font-size:8.5px;color:#706d5c;margin-top:4px;text-align:center;}
+.study-float-dock .inspire-device{display:block;width:230px!important;margin:0!important;background:transparent;box-shadow:none;border:0;}
+.study-float-dock .inspire-button{display:block;width:230px!important;box-sizing:border-box;border:1px solid rgba(135,82,61,.18);background:#c98268;color:#fff;border-radius:9px;padding:10px 14px;box-shadow:0 6px 14px rgba(50,47,35,.11);font-size:11px;text-align:center;}
+.study-float-dock .inspire-card{position:absolute;right:0;bottom:calc(100% + 8px);width:230px!important;box-sizing:border-box;background:#fffdf7;border:1px solid #e1dac9;border-radius:10px;padding:15px 17px 13px;margin:0;box-shadow:0 12px 25px rgba(50,47,35,.15);}
+.study-float-dock .inspire-card[hidden]{display:none!important;}
+.study-float-dock.dragging{transform:none!important;}
+.study-float-dock.dragging .timer-device,.study-float-dock.dragging .inspire-device{box-shadow:0 12px 28px rgba(50,47,35,.24);}
+@media(max-width:850px){.study-float-dock{right:14px;bottom:14px;width:230px!important;max-width:calc(100vw - 28px);}.study-float-dock .float-device,.study-float-dock .timer-device,.study-float-dock .inspire-device,.study-float-dock .inspire-button{width:100%!important;}.study-float-dock .timer-device{grid-template-columns:92px 1fr;}}
