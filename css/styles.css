@@ -146,5 +146,7 @@ a{text-decoration:none;color:inherit}button,input,textarea,select{font:inherit}b
 .remember-guide .remember-guide-head{cursor:grab;}
 .remember-guide.dragging .remember-guide-head{cursor:grabbing;}
 .remember-guide-body[hidden]{display:none;}
+/* Feature lock: Remember + Guide itself never disappears; only its body collapses. */
+#rememberGuide{display:block !important;}
 .remember-guide-head button{font-size:17px;min-width:20px;cursor:pointer;}
 @media(max-width:850px){.study-float-dock{width:230px;max-width:calc(100vw - 28px);}.study-float-dock .timer-device,.study-float-dock .inspire-device,.study-float-dock .inspire-card,.study-float-dock .inspire-button{width:100%;}}

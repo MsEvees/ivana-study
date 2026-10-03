@@ -43,3 +43,9 @@ The V5.3 Library + Study prototype is unchanged. V5.4 only changes the login sur
 - Remember + Guide stays present and can collapse/expand with the arrow; it is independently movable.
 - Root/index routes to the canonical 0login.html entry.
 - Existing Supabase Library and study functionality are otherwise preserved from this baseline.
+
+
+## V5.4 Interface lock
+- Remember + Guide remains visible on the Study page when collapsed; only the guide body collapses.
+- The arrow toggles between collapsed and expanded states.
+- Guide position remains movable and persistent.

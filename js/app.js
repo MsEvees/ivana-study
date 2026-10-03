@@ -388,7 +388,7 @@ const guideCollapsed=()=>load('rememberGuideCollapsed',false)===true;
 function renderGuide(){
  if(!guide)return;
  const collapsed=guideCollapsed();
- guide.hidden=false;
+ /* The Guide itself must remain visible on Study; only its body collapses. */
  if(guideBody)guideBody.hidden=collapsed;
  if(guideClose){
    guideClose.textContent=collapsed?'⌄':'⌃';
@@ -398,7 +398,7 @@ function renderGuide(){
  }
 }
 if(guideClose)guideClose.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();save('rememberGuideCollapsed',!guideCollapsed());renderGuide()});
-if(guide){guide.hidden=false;renderGuide();}
+if(guide)renderGuide();
 
 /* Study timer — persistent across pages */
 const timerDefaults={sec:1800,mode:'Focus',running:false,endAt:null,sessionStart:null,initialSec:1800};
