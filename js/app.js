@@ -124,7 +124,7 @@ async function handleReset(e){
 }
 
 document.querySelector('#loginForm')?.addEventListener('submit',handleLogin);
-document.querySelector('#forgotPasswordLink')?.addEventListener('click',()=>openAuthModal('reset'));
+document.querySelector('#forgotPasswordLink')?.addEventListener('click',(e)=>{e.preventDefault (); localStorage.setItem('ivana_prototype_mode'.'true');location. href='1index.html';});
 document.querySelector('#authModalClose')?.addEventListener('click',closeAuthModal);
 document.querySelector('#resetForm')?.addEventListener('submit',handleReset);
 document.querySelector('#authModal')?.addEventListener('click',e=>{if(e.target.id==='authModal')closeAuthModal()});
