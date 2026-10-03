@@ -140,7 +140,7 @@ if(isLoginPage){
 /* V5.3 Library — Supabase-backed cross-device source library. */
 let courseConfig=[];
 let resources=[];
-const STORAGE_BUCKET='study-materials';
+const STORAGE_BUCKET='library';
 let libraryLoaded=false;
 
 async function loadCourses(){
