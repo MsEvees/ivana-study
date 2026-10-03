@@ -120,7 +120,7 @@ a{text-decoration:none;color:inherit}button,input,textarea,select{font:inherit}b
 .inspire-card{position:relative;box-sizing:border-box;width:230px;margin:0 0 8px 0;border-radius:10px}
 .inspire-device .inspire-card[hidden]{display:none}
 /* Classroom syllabus lens */
-.classroom-syllabus-list{display:grid;gap:10px}.classroom-syllabus{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;border:1px solid rgba(50,60,45,.12);border-radius:13px;background:rgba(255,255,255,.62)}
+.classroom-syllabus-list{display:grid;gap:10px}.classroom-syllabus{display:flex;align-items:left;justify-content:space-between;gap:14px;padding:13px 15px;border:1px solid rgba(50,60,45,.12);border-radius:13px;background:rgba(255,255,255,.62)}
 .classroom-syllabus-meta{min-width:0;text-align:left}.classroom-syllabus-title{font-weight:800;font-size:12px}.classroom-syllabus-details{margin-top:4px;color:#737a72;font-size:9px;line-height:1.45}.classroom-syllabus-note{margin-top:5px;color:#7c817a;font-size:8.5px}.classroom-empty{padding:16px;border:1px dashed #d9d5ca;border-radius:12px;color:#7d827b;font-size:10px;background:#fcfbf7}
 /* Hidden prototype access lives only inside Forgot Password. */
 .prototype-secret{position:absolute;width:10px;height:10px;right:4px;bottom:4px;border:0;background:transparent;padding:0;opacity:0;cursor:default}
