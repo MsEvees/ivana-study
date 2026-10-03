@@ -35,3 +35,11 @@ Do not place service-role keys or passwords in the frontend.
 
 ## V5.4 login-only refinement
 The V5.3 Library + Study prototype is unchanged. V5.4 only changes the login surface for the administrator-provisioned Supabase account: visible account creation is removed, Forgot Password remains, and the prototype entry stays hidden inside Forgot Password. No new superadmin database migration or role logic is included in this version.
+
+
+## V5.4 interface refinement backup
+- Timer and Inspire Me are one movable floating unit.
+- Timer drag uses pointer events for Windows/macOS mouse and trackpad compatibility.
+- Remember + Guide stays present and can collapse/expand with the arrow; it is independently movable.
+- Root/index routes to the canonical 0login.html entry.
+- Existing Supabase Library and study functionality are otherwise preserved from this baseline.
