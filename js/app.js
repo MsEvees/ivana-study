@@ -228,23 +228,24 @@ function renderCourses(){
  const list=document.querySelector('#courseList');if(!list)return;
  list.innerHTML=courseConfig.map(c=>{
    const syllabus=resources.find(r=>r.type==='syllabus'&&(r.course===c.code||r.courses?.includes(c.code)));
-   const status=syllabus?`<div class="course-status"><span class="course-syllabus-badge">Syllabus added</span></div>`:`<div class="course-status">No syllabus yet</div>`;
-   return `<div class="course-item ${courseGroup(c.code)}"><div><div class="course-code">${escapeHtml(c.code)}</div><div class="course-title">${escapeHtml(c.title)}</div>${syllabus?`<div class="course-syllabus-mini">${escapeHtml(syllabus.schoolYear||'')} ${syllabus.semester?'· '+escapeHtml(syllabus.semester):''}</div>`:''}</div>${status}</div>`;
+   const status=syllabus?`<span class="course-syllabus-badge">Syllabus added</span>`:`<span class="course-status">No syllabus yet</span>`;
+   const action=syllabus?`<div class="course-syllabus-action"><span class="course-syllabus-mini">${escapeHtml(syllabus.schoolYear||'')}${syllabus.semester?' · '+escapeHtml(syllabus.semester):''}</span><button class="btn outline small" data-open-course-syllabus="${escapeHtml(syllabus.id)}">Open syllabus</button></div>`:'';
+   return `<div class="course-item ${courseGroup(c.code)}"><div><div class="course-code">${escapeHtml(c.code)}</div><div class="course-title">${escapeHtml(c.title)}</div>${action}</div>${status}</div>`;
  }).join('');
- renderClassroomSyllabi();
+ list.querySelectorAll('[data-open-course-syllabus]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openCourseSyllabus));location.href='3study.html'}));
+ renderReadingNotesRepository();
 }
-function renderClassroomSyllabi(){
- const box=document.querySelector('#classroomSyllabusList');if(!box)return;
- const syllabi=resources.filter(r=>r.type==='syllabus');
- if(!syllabi.length){box.innerHTML='<div class="classroom-empty">Add a syllabus in Library to anchor a classroom and use it as your course coverage lens.</div>';return;}
- box.innerHTML=syllabi.map(r=>{
-   const course=r.course||r.courses?.[0]||'';
-   const related=resources.filter(x=>x.type!=='syllabus' && (x.courses||[]).includes(course));
-   const relatedHtml=related.length?`<div class="classroom-materials"><div class="classroom-materials-label">Supporting materials in your Library</div>${related.map(x=>`<div class="classroom-material"><div class="classroom-material-info"><strong>${escapeHtml(x.title||x.fileName||'Untitled source')}</strong><span>${escapeHtml(sourceTypeName(x.type))}${x.fileName?' · '+escapeHtml(x.fileName):''}</span></div><button class="btn outline small" data-open-resource="${escapeHtml(x.id)}">Open in Study</button></div>`).join('')}</div>`:'<div class="classroom-materials-empty">No supporting materials are associated with this course yet. Add them in Library and select this course under Course relevance.</div>';
-   return `<div class="classroom-syllabus"><div class="classroom-syllabus-meta"><div class="classroom-syllabus-title">${escapeHtml(courseName(course))}</div><div class="classroom-syllabus-details">${escapeHtml(r.institution||'')} ${r.schoolYear?'· '+escapeHtml(r.schoolYear):''} ${r.semester?'· '+escapeHtml(r.semester):''} ${r.instructor?'· '+escapeHtml(r.instructor):''}</div><div class="classroom-syllabus-note">Course lens only · open the syllabus to check topics and objectives while studying.</div>${relatedHtml}</div><button class="btn outline small" data-open-syllabus="${escapeHtml(r.id)}">Open syllabus</button></div>`;
- }).join('');
- box.querySelectorAll('[data-open-syllabus],[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openSyllabus||b.dataset.openResource));location.href='3study.html'}));
+async function renderReadingNotesRepository(){
+ const box=document.querySelector('#readingNotesList');if(!box)return;
+ const session=await getCurrentSession();if(!session){box.innerHTML='<div class="classroom-empty">Sign in to view your online Reading Notes.</div>';return;}
+ try{
+   const {data,error}=await supabaseClient.from('reading_notes').select('id,resource_id,content,updated_at,resources(title)').eq('user_id',session.user.id).order('updated_at',{ascending:false});
+   if(error)throw error;
+   if(!data?.length){box.innerHTML='<div class="classroom-empty">No reading notes saved yet. Notes you save in Study will appear here.</div>';return;}
+   box.innerHTML=data.map(n=>`<div class="reading-note-item"><strong>${escapeHtml(n.resources?.title||'Reading note')}</strong><span>${escapeHtml(String(n.content||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,240)||'No preview')}</span><span>Updated ${escapeHtml(shortDate(n.updated_at))}</span></div>`).join('');
+ }catch(e){console.warn('Reading Notes repository could not be loaded.',e);box.innerHTML='<div class="classroom-empty">Reading Notes are ready, but the online notes table is not available yet.</div>';}
 }
+
 function renderCoursePicker(){
  const picker=document.querySelector('#resourceCoursePicker');if(!picker)return;
  picker.innerHTML=courseConfig.map(c=>`<label class="course-choice ${courseGroup(c.code)}"><input type="checkbox" value="${escapeHtml(c.code)}"><span><strong>${escapeHtml(c.code)}</strong><span>${escapeHtml(c.title)}</span></span></label>`).join('');
@@ -281,7 +282,7 @@ async function loadRemoteResources(){
 function renderReferenceRegister(){
  const body=$('#referenceTable');if(!body)return;
  if(!resources.length){body.innerHTML='<tr><td colspan="6">No sources added yet.</td></tr>';return}
- body.innerHTML=resources.map(r=>`<tr><td>${escapeHtml(sourceTypeName(r.type))}</td><td>${escapeHtml(r.author||r.institution||'—')}</td><td>${escapeHtml(r.year||r.schoolYear||'—')}</td><td>${escapeHtml(r.title||'—')}</td><td>${escapeHtml(r.courses?.length?r.courses.map(courseName).join(' · '):'Unassigned')}</td><td>${r.type==='syllabus'?'<span class="map-lens">Course lens only</span>':'<span class="map-eligible">Eligible</span>'}</td></tr>`).join('');
+ body.innerHTML=resources.map(r=>`<tr><td>${escapeHtml(sourceTypeName(r.type))}</td><td>${escapeHtml(r.author||r.institution||'—')}</td><td>${escapeHtml(r.year||r.schoolYear||'—')}</td><td>${escapeHtml(r.title||'—')}</td><td>${escapeHtml(r.courses?.length?r.courses.join(' · '):(r.course||'Unassigned'))}</td><td>${r.type==='syllabus'?'<span class="map-lens">Course lens only</span>':'<span class="map-eligible">Eligible</span>'}</td></tr>`).join('');
 }
 function renderResources(){
  const list=document.querySelector('#libraryList');if(!list)return;
@@ -289,7 +290,7 @@ function renderResources(){
  const q=(document.querySelector('#resourceSearch')?.value||'').toLowerCase().trim();
  const shown=resources.filter(r=>(!filter||r.courses?.includes(filter)||r.course===filter)&&(!q||`${r.title} ${r.fileName||''} ${r.type||''} ${(r.courses||[]).join(' ')} ${r.author||''} ${r.institution||''} ${r.year||''} ${r.schoolYear||''}`.toLowerCase().includes(q)));
  if(!shown.length){list.innerHTML='<div class="empty-icon">＋</div><h2>Your library is empty.</h2><p>Add a source to begin building your private study library.</p>';renderReferenceRegister();return}
- list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item" id="resource-${escapeHtml(r.id)}"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):' · Stored in Ivana'}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div><div class="resource-biblio">${escapeHtml(r.author||r.institution||'')}${r.year?' · '+escapeHtml(r.year):''}${r.schoolYear?' · '+escapeHtml(r.schoolYear):''}${r.semester?' · '+escapeHtml(r.semester):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div><div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}${r.fileName?' · Cloud stored':''}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${escapeHtml(r.id)}">Open</button><button class="btn outline small" data-delete-resource="${escapeHtml(r.id)}">Remove</button></div></div>`).join('')+'</div>';
+ list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item" id="resource-${escapeHtml(r.id)}"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):' · Stored in Ivana'}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.join(' · '):(r.course||'Unassigned')))}</div><div class="resource-biblio">${escapeHtml(r.author||r.institution||'')}${r.year?' · '+escapeHtml(r.year):''}${r.schoolYear?' · '+escapeHtml(r.schoolYear):''}${r.semester?' · '+escapeHtml(r.semester):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div><div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}${r.fileName?' · Cloud stored':''}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${escapeHtml(r.id)}">Open</button><button class="btn outline small" data-delete-resource="${escapeHtml(r.id)}">Remove</button></div></div>`).join('')+'</div>';
  list.querySelectorAll('[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openResource));location.href='3study.html'}));
  list.querySelectorAll('[data-delete-resource]').forEach(b=>b.addEventListener('click',async()=>{await deleteRemoteResource(String(b.dataset.deleteResource));}));
  renderReferenceRegister();
@@ -396,6 +397,7 @@ async function openStudyResource(){
    if(error)throw error;
    if(!data){reader.hidden=false;reader.innerHTML='<span>This resource could not be found in your Library.</span><small>The database record may no longer be available for this signed-in account.</small><a class="btn outline small" href="2library.html">Back to Library</a>';return;}
    activeSourceRecord=normalizeResource(data);
+   loadOnlineReadingNotes();
    $('#readerDocName').textContent=activeSourceRecord.title||activeSourceRecord.fileName||'Source';
    if(activeSourceRecord.text||activeSourceRecord.html){reader.hidden=true;wrap.hidden=false;$('#pdfPage').innerHTML='<div class="source-text-view">'+(activeSourceRecord.html||escapeHtml(activeSourceRecord.text||''))+'</div>';$('#pageCount').textContent='1';$('#pageNum').textContent='1';return;}
    if(activeSourceRecord.storagePath){
@@ -424,7 +426,7 @@ async function renderPdfPage(){
  if(pageHasText){pdfjsLib.renderTextLayer({textContentSource:content,container:textLayer,viewport,textDivs:[]});}
  const layer=$('#annotationLayer');if(layer){layer.classList.toggle('scan-annotation-active',!pageHasText&&activeAnnotationTool!=='underline');layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';}
  $('#pageNum').textContent=pdfPageNumber;$('#zoomLabel').textContent=Math.round(pdfScale*100)+'%';
- $('#readerStatus').textContent=pageHasText?'Select text in the page, then choose an annotation tool.':'Scanned page — choose a color, then drag over a passage or figure to mark it.';
+ $('#readerStatus').textContent=pageHasText?'Select text in the page, then choose an annotation tool.':'Scanned page — choose a color, then drag over a passage or figure to mark it.'; $('#ocrPage')?.toggleAttribute('hidden',pageHasText);
  restoreAnnotations();
 }
 function selectionRects(){const sel=window.getSelection();if(!sel||sel.isCollapsed||!$('#pdfPage')?.contains(sel.anchorNode))return null;const rects=Array.from(sel.getRangeAt(0).getClientRects());const pageRect=$('#pdfPage').getBoundingClientRect();return {text:sel.toString().trim(),rects:rects.map(r=>({x:(r.left-pageRect.left)/pdfScale,y:(r.top-pageRect.top)/pdfScale,w:r.width/pdfScale,h:r.height/pdfScale})).filter(r=>r.w>1&&r.h>1)};}
@@ -439,6 +441,22 @@ annotationLayer?.addEventListener('pointerup',e=>{if(!scanDrawing)return;const d
 $('#prevPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage()}});$('#nextPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber<pdfDoc.numPages){pdfPageNumber++;await renderPdfPage()}});
 $('#zoomIn')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.min(2.5,pdfScale+.1);await renderPdfPage()}});$('#zoomOut')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.max(.5,pdfScale-.1);await renderPdfPage()}});$('#fitWidth')?.addEventListener('click',async()=>{if(pdfDoc){const p=await pdfDoc.getPage(pdfPageNumber);const v=p.getViewport({scale:1});const available=Math.max(320,($('#readerViewport')?.clientWidth||900)-38);pdfScale=available/v.width;await renderPdfPage()}});
 $('#readerViewport')?.addEventListener('mouseup',()=>{if(activeAnnotationTool&&activeAnnotationTool!=='none'){const a=selectionRects();if(a?.text)$('#readerStatus').textContent='Selection ready. Choose an annotation tool to apply it.'}});
+async function runPageOCR(){
+ if(pageHasText||!pdfDoc)return;
+ const btn=$('#ocrPage');if(btn){btn.disabled=true;btn.textContent='Reading…';}
+ $('#readerStatus').textContent='Reading the scanned page…';
+ try{
+   if(!window.Tesseract)throw new Error('OCR engine unavailable');
+   const page=await pdfDoc.getPage(pdfPageNumber),viewport=page.getViewport({scale:2}),c=document.createElement('canvas');c.width=viewport.width;c.height=viewport.height;
+   await page.render({canvasContext:c.getContext('2d'),viewport}).promise;
+   const result=await Tesseract.recognize(c,'eng',{logger:m=>{if(m.status==='recognizing text')$('#readerStatus').textContent='Reading the scanned page… '+Math.round((m.progress||0)*100)+'%';}});
+   let panel=$('#ocrTextPanel');if(!panel){panel=document.createElement('div');panel.id='ocrTextPanel';panel.className='ocr-text-panel';$('#readerStatus')?.insertAdjacentElement('afterend',panel)}
+   panel.textContent=String(result.data?.text||'').trim()||'No readable text was detected on this page.';
+   $('#readerStatus').textContent='Scanned page read with OCR.';
+ }catch(e){console.warn('OCR failed:',e);$('#readerStatus').textContent='OCR could not read this page. You can still mark the scanned page manually.';}
+ if(btn){btn.disabled=false;btn.textContent='Read scanned page';}
+}
+$('#ocrPage')?.addEventListener('click',runPageOCR);
 openStudyResource();
 $('#openLibraryFromStudy')?.addEventListener('click',()=>{if(activeSourceRecord?.id)localStorage.setItem('ivana_currentResource',String(activeSourceRecord.id));location.href='2library.html'});
 
@@ -485,6 +503,7 @@ $('#inspireButton')?.addEventListener('click',showInspiration);$('#inspireNext')
 function makeDraggable(el,key){if(!el)return;const handle=el.querySelector('[data-drag-handle]');if(!handle)return;const savedPos=load('float_'+key,null);if(savedPos&&Number.isFinite(savedPos.left)&&Number.isFinite(savedPos.top)){el.style.left=savedPos.left+'px';el.style.top=savedPos.top+'px';el.style.right='auto';el.style.bottom='auto'}let dragging=false,startX=0,startY=0,baseX=0,baseY=0;const move=(x,y)=>{const maxX=Math.max(8,window.innerWidth-el.offsetWidth-8),maxY=Math.max(8,window.innerHeight-el.offsetHeight-8);el.style.left=Math.min(maxX,Math.max(8,baseX+x-startX))+'px';el.style.top=Math.min(maxY,Math.max(8,baseY+y-startY))+'px';el.style.right='auto';el.style.bottom='auto'};const stop=()=>{if(!dragging)return;dragging=false;el.classList.remove('dragging');document.body.style.userSelect='';save('float_'+key,{left:parseFloat(el.style.left),top:parseFloat(el.style.top)});window.removeEventListener('mousemove',mm);window.removeEventListener('mouseup',stop)};const mm=e=>move(e.clientX,e.clientY);const start=(x,y)=>{dragging=true;startX=x;startY=y;const r=el.getBoundingClientRect();baseX=r.left;baseY=r.top;el.classList.add('dragging');document.body.style.userSelect='none';window.addEventListener('mousemove',mm);window.addEventListener('mouseup',stop)};handle.addEventListener('mousedown',e=>{e.preventDefault();start(e.clientX,e.clientY)})}
 makeDraggable($('#studyFloatDock'),'dock');
 makeDraggable($('#rememberGuide'),'guide');
+makeDraggable($('#inspireDevice'),'inspire');
 
 ['mousemove','keydown','scroll','click','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{lastActivity=Date.now()}));
 setInterval(()=>{if(!running||idleTriggered)return;if(Date.now()-lastActivity>45000){idleTriggered=true}},5000);
@@ -492,6 +511,27 @@ setInterval(()=>{if(!running||idleTriggered)return;if(Date.now()-lastActivity>45
 /* Study side panels */
 document.querySelectorAll('.side-tab').forEach(btn=>btn.addEventListener('click',()=>{const key=btn.dataset.tab;document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.side-panel').forEach(p=>p.hidden=p.dataset.panel!==key)}));
 const notes=$('#personalNotes');
+async function loadOnlineReadingNotes(){
+ if(!notes||!activeSourceRecord?.id)return;
+ const session=await getCurrentSession();if(!session)return;
+ try{
+   const {data,error}=await supabaseClient.from('reading_notes').select('content').eq('user_id',session.user.id).eq('resource_id',activeSourceRecord.id).maybeSingle();
+   if(error)throw error;
+   notes.innerHTML=data?.content||load('personalNotes','')||'';
+   if($('#saveStatus'))$('#saveStatus').textContent=data?'Saved online.':'New note — not saved yet.';
+ }catch(e){notes.innerHTML=load('personalNotes','')||'';if($('#saveStatus'))$('#saveStatus').textContent='Offline copy loaded.';console.warn('Online Reading Notes load failed.',e);}
+}
+async function saveReadingNotesOnline(){
+ if(!notes)return;
+ const content=notes.innerHTML;save('personalNotes',content);
+ const session=await getCurrentSession();
+ if(!session||!activeSourceRecord?.id){if($('#saveStatus'))$('#saveStatus').textContent='Saved locally.';return;}
+ try{
+   const {error}=await supabaseClient.from('reading_notes').upsert({user_id:session.user.id,resource_id:activeSourceRecord.id,content,updated_at:new Date().toISOString()},{onConflict:'user_id,resource_id'});
+   if(error)throw error;
+   if($('#saveStatus'))$('#saveStatus').textContent='Saved online.';
+ }catch(e){if($('#saveStatus'))$('#saveStatus').textContent='Saved locally — online save unavailable.';console.warn('Online Reading Notes save failed.',e);}
+}
 if(notes){
  const savedNotes=load('personalNotes','');
  notes.innerHTML=String(savedNotes||'').startsWith('<')?String(savedNotes):escapeHtml(savedNotes).replace(/\n/g,'<br>');
@@ -503,26 +543,17 @@ if(notes){
      const cols=Math.min(8,Math.max(1,Number(prompt('Number of columns','2'))||2));
      let html='<table class="notebook-table"><tbody>';
      for(let r=0;r<rows;r++){html+='<tr>';for(let c=0;c<cols;c++)html+='<td><br></td>';html+='</tr>'}
-     html+='</tbody></table><p><br></p>';
-     document.execCommand('insertHTML',false,html);
-     return;
+     html+='</tbody></table><p><br></p>';document.execCommand('insertHTML',false,html);return;
    }
-   if(command==='indent'){
-     document.execCommand('indent',false,null);
-     return;
-   }
+   if(command==='indent'){document.execCommand('indent',false,null);return;}
    document.execCommand(command,false,null);
  };
  document.querySelectorAll('[data-note-command]').forEach(btn=>btn.addEventListener('mousedown',e=>e.preventDefault()));
  document.querySelectorAll('[data-note-command]').forEach(btn=>btn.addEventListener('click',()=>runNoteCommand(btn.dataset.noteCommand)));
- notes.addEventListener('keydown',e=>{
-   if(e.key==='Tab'){
-     e.preventDefault();
-     if(e.shiftKey)document.execCommand('outdent',false,null);else document.execCommand('indent',false,null);
-   }
- });
- $('#saveNotes')?.addEventListener('click',()=>{save('personalNotes',notes.innerHTML);if($('#saveStatus'))$('#saveStatus').textContent='Saved locally.'});
+ notes.addEventListener('keydown',e=>{if(e.key==='Tab'){e.preventDefault();if(e.shiftKey)document.execCommand('outdent',false,null);else document.execCommand('indent',false,null);}});
+ $('#saveNotes')?.addEventListener('click',saveReadingNotesOnline);
 }
+
 
 function renderProgressSessions(){
  if(!$('#sessions'))return;

@@ -146,3 +146,22 @@ a{text-decoration:none;color:inherit}button,input,textarea,select{font:inherit}b
 /* V5.7 Study readability refinement: larger Study UI text with compact spacing and safe wrapping. */
 .resource-title,.resource-file,.resource-course,.resource-biblio,.resource-map-status,.course-title,.course-syllabus-mini,.classroom-syllabus-title,.classroom-syllabus-details,.classroom-syllabus-note,.home-list-row span,.home-list-row strong{overflow-wrap:anywhere;word-break:normal;white-space:normal;}
 @media(max-width:1000px){.study-layout{grid-template-columns:1fr}.study-side-card{position:static}.reader-viewport{height:64vh;min-height:460px}.side-tab{font-size:11px}.side-panel h3{font-size:14px}.side-panel p{font-size:12px}.sidebar-note{font-size:14px}}
+
+/* v5.7 (minC) — compact Library density and separate floating study tools. */
+.resource-list,.resource-item,.resource-meta,.resource-biblio,.resource-course,.resource-file,.resource-map-status{text-align:left;}
+.resource-item{padding:13px 16px;gap:14px;}
+.resource-title{font-size:1.08rem;line-height:1.3;}
+.resource-file,.resource-course,.resource-biblio,.resource-map-status{font-size:1rem;line-height:1.45;}
+.resource-actions{align-self:flex-start;}
+.course-syllabus-action{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
+.course-syllabus-action .course-syllabus-mini{margin-top:0;}
+.reading-notes-list{display:grid;gap:9px;}
+.reading-note-item{padding:12px 14px;border:1px solid rgba(50,60,45,.12);border-radius:12px;background:rgba(255,255,255,.62);}
+.reading-note-item strong{display:block;font-size:13px;overflow-wrap:anywhere;}
+.reading-note-item span{display:block;margin-top:4px;font-size:11px;color:#777e76;line-height:1.4;overflow-wrap:anywhere;}
+.timer-device{position:fixed !important;right:24px !important;bottom:84px !important;width:230px !important;}
+.inspire-device{position:fixed !important;right:24px !important;bottom:22px !important;width:230px !important;}
+.inspire-device .inspire-card{position:absolute !important;top:auto !important;bottom:calc(100% + 8px) !important;right:0 !important;margin:0 !important;width:230px !important;}
+.study-float-dock{position:static !important;width:0 !important;height:0 !important;display:block !important;}
+.ocr-text-panel{margin-top:9px;padding:10px;border:1px solid var(--border);border-radius:9px;background:#fff;font-size:12px;line-height:1.55;max-height:220px;overflow:auto;white-space:pre-wrap;text-align:left;}
+@media(max-width:850px){.timer-device{right:14px !important;bottom:84px !important}.inspire-device{right:14px !important;bottom:14px !important}.inspire-device .inspire-card{right:0 !important;width:min(230px,calc(100vw - 28px)) !important}.resource-title{font-size:1.04rem}.resource-file,.resource-course,.resource-biblio,.resource-map-status{font-size:.96rem;}}

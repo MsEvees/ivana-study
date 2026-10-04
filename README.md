@@ -45,3 +45,11 @@ Do not place service-role keys or passwords in the frontend.
 
 ## Important
 This ZIP is a complete project snapshot intended to replace the current Ivana project files. It does not modify live Supabase data or execute migrations.
+
+## v5.7 (minC)
+- Library density/alignment refinement and course-code display.
+- Study resource reader state repaired so the empty PDF prompt is hidden when a resource is loaded.
+- Timer and Inspire Me remain separate; Inspire Me is independently draggable.
+- Notebook Notes support online persistence through `reading_notes`, with local fallback.
+- Main Classroom now contains Courses and Reading Notes; course syllabi are linked from the corresponding course entry.
+- Scanned-page OCR action added to the Study reader using Tesseract.js; manual region annotations remain available.
