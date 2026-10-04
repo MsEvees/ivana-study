@@ -12,8 +12,8 @@ const supabaseClient = (window.supabase && window.IVANA_SUPABASE_URL && window.I
     })
   : null;
 window.ivana.supabase = supabaseClient;
-window.ivana.version='V5.3';
-const isLoginPage = (location.pathname.split('/').pop() || 'index.html') === '0login.html';
+window.ivana.version='v5.7_stable';
+const isLoginPage = ['0login.html','index.html',''].includes((location.pathname.split('/').pop() || 'index.html'));
 const prototypeMode = ()=>localStorage.getItem('ivana_prototype_mode')==='true';
 
 function authMessage(error){
@@ -58,22 +58,22 @@ async function initAuth(){
   supabaseClient.auth.onAuthStateChange((event,session)=>{
     if(session)syncProfile(session.user);
     if(isLoginPage && event==='SIGNED_IN' && session)location.replace('1index.html');
-    if(!isLoginPage && event==='SIGNED_OUT')location.replace('0login.html');
+    if(!isLoginPage && event==='SIGNED_OUT')location.replace('index.html');
   });
   try{
     const {data,error}=await supabaseClient.auth.getSession();
     if(error)console.warn('Ivana Auth session check:',error);
     const session=data?.session;
     if(isLoginPage){if(session)location.replace('1index.html');return;}
-    if(!session && !prototypeMode()){location.replace('0login.html');return;}
+    if(!session){location.replace('index.html');return;}
   }catch(e){
     console.error('Ivana Auth session check failed:',e);
-    if(!isLoginPage && !prototypeMode())location.replace('0login.html');
+    if(!isLoginPage)location.replace('index.html');
   }
   document.querySelector('#signOutButton')?.addEventListener('click',async()=>{
     const btn=document.querySelector('#signOutButton');if(btn)btn.disabled=true;
     try{await supabaseClient.auth.signOut();}catch(e){console.warn('Sign out:',e)}
-    localStorage.removeItem('ivana_prototype_mode');location.replace('0login.html');
+    localStorage.removeItem('ivana_prototype_mode');location.replace('index.html');
   });
 }
 
@@ -98,17 +98,55 @@ async function handleLogin(e){
   }
 }
 
-function openAuthModal(mode='reset'){
+function openAuthModal(mode){
   const modal=document.querySelector('#authModal');if(!modal)return;
   modal.hidden=false;
-  const reset=document.querySelector('#resetForm');
+  const signup=document.querySelector('#signupForm'),reset=document.querySelector('#resetForm');
   const eyebrow=document.querySelector('#authModalEyebrow'),title=document.querySelector('#authModalTitle'),intro=document.querySelector('#authModalIntro');
-  if(reset)reset.hidden=false;
-  if(eyebrow)eyebrow.textContent='Password reset';
-  if(title)title.textContent='Let’s get you back in.';
-  if(intro)intro.textContent='Accounts are provisioned by the administrator. Enter your email and Supabase will send a password reset link if the account exists.';
+  if(mode==='reset'){
+    signup.hidden=true;reset.hidden=false;eyebrow.textContent='Reset password';title.textContent='Let’s get you back in.';intro.textContent='Enter your email and Supabase will send you a password reset link.';
+  }else{
+    signup.hidden=false;reset.hidden=true;eyebrow.textContent='Create an account';title.textContent='Begin your study space.';intro.textContent='Create your account and we’ll keep your study space connected to you.';
+  }
 }
 function closeAuthModal(){const modal=document.querySelector('#authModal');if(modal)modal.hidden=true;}
+
+async function handleSignup(e){
+  e.preventDefault();
+  const displayName=document.querySelector('#signupDisplayName')?.value.trim();
+  const email=document.querySelector('#signupEmail')?.value.trim();
+  const password=document.querySelector('#signupPassword')?.value||'';
+  const confirm=document.querySelector('#signupConfirm')?.value||'';
+  const button=document.querySelector('#signupButton'),status=document.querySelector('#signupStatus');
+  if(!displayName){status.textContent='Add the study name Ivana should use for you.';return;}
+  if(password.length<6){status.textContent='Use a password with at least 6 characters.';return;}
+  if(password!==confirm){status.textContent='The passwords do not match.';return;}
+  if(!supabaseClient){status.textContent='Supabase configuration is missing. Check js/supabase-config.js.';return;}
+  button.disabled=true;button.textContent='Creating account…';status.textContent='Connecting to Supabase…';
+  try{
+    const {data,error}=await supabaseClient.auth.signUp({
+      email,
+      password,
+      options:{
+        data:{display_name:displayName},
+        emailRedirectTo:authRedirect()
+      }
+    });
+    if(error)throw error;
+    if(data?.user)await syncProfile(data.user);
+    if(data?.session){
+      localStorage.removeItem('ivana_prototype_mode');
+      location.replace('1index.html');
+      return;
+    }
+    status.textContent='Account created. Check your email to confirm your account, then sign in. If no email arrives, check Supabase Auth → Users.';
+    button.disabled=false;button.textContent='Create account';
+  }catch(error){
+    console.error('Ivana account creation failed:',error);
+    status.textContent=authMessage(error);
+    button.disabled=false;button.textContent='Create account';
+  }
+}
 
 async function handleReset(e){
   e.preventDefault();
@@ -124,13 +162,15 @@ async function handleReset(e){
 }
 
 document.querySelector('#loginForm')?.addEventListener('submit',handleLogin);
-document.querySelector('#forgotPasswordLink')?.addEventListener('click',(e)=>{e.preventDefault();localStorage.setItem('ivana_prototype_mode','true');location.href='1index.html';});
+document.querySelector('#createAccountLink')?.addEventListener('click',()=>openAuthModal('signup'));
+document.querySelector('#forgotPasswordLink')?.addEventListener('click',()=>openAuthModal('reset'));
 document.querySelector('#authModalClose')?.addEventListener('click',closeAuthModal);
+document.querySelector('#signupForm')?.addEventListener('submit',handleSignup);
 document.querySelector('#resetForm')?.addEventListener('submit',handleReset);
 document.querySelector('#authModal')?.addEventListener('click',e=>{if(e.target.id==='authModal')closeAuthModal()});
 initAuth();
 
-/* V5.4 login refinement: prototype access is not linked from the public login surface. The entry remains hidden inside Forgot Password. */
+/* V5.3 prototype access: not linked from the public login surface. The entry is hidden inside Forgot Password. */
 if(isLoginPage){
   document.querySelector('#prototypeSecret')?.addEventListener('click',()=>{
     localStorage.setItem('ivana_prototype_mode','true');
@@ -199,9 +239,11 @@ function renderClassroomSyllabi(){
  if(!syllabi.length){box.innerHTML='<div class="classroom-empty">Add a syllabus in Library to anchor a classroom and use it as your course coverage lens.</div>';return;}
  box.innerHTML=syllabi.map(r=>{
    const course=r.course||r.courses?.[0]||'';
-   return `<div class="classroom-syllabus"><div class="classroom-syllabus-meta"><div class="classroom-syllabus-title">${escapeHtml(courseName(course))}</div><div class="classroom-syllabus-details">${escapeHtml(r.institution||'')} ${r.schoolYear?'· '+escapeHtml(r.schoolYear):''} ${r.semester?'· '+escapeHtml(r.semester):''} ${r.instructor?'· '+escapeHtml(r.instructor):''}</div><div class="classroom-syllabus-note">Course lens only · open the syllabus to check topics and objectives while studying.</div></div><button class="btn outline small" data-open-syllabus="${escapeHtml(r.id)}">Open syllabus</button></div>`;
+   const related=resources.filter(x=>x.type!=='syllabus' && (x.courses||[]).includes(course));
+   const relatedHtml=related.length?`<div class="classroom-materials"><div class="classroom-materials-label">Supporting materials in your Library</div>${related.map(x=>`<div class="classroom-material"><div class="classroom-material-info"><strong>${escapeHtml(x.title||x.fileName||'Untitled source')}</strong><span>${escapeHtml(sourceTypeName(x.type))}${x.fileName?' · '+escapeHtml(x.fileName):''}</span></div><button class="btn outline small" data-open-resource="${escapeHtml(x.id)}">Open in Study</button></div>`).join('')}</div>`:'<div class="classroom-materials-empty">No supporting materials are associated with this course yet. Add them in Library and select this course under Course relevance.</div>';
+   return `<div class="classroom-syllabus"><div class="classroom-syllabus-meta"><div class="classroom-syllabus-title">${escapeHtml(courseName(course))}</div><div class="classroom-syllabus-details">${escapeHtml(r.institution||'')} ${r.schoolYear?'· '+escapeHtml(r.schoolYear):''} ${r.semester?'· '+escapeHtml(r.semester):''} ${r.instructor?'· '+escapeHtml(r.instructor):''}</div><div class="classroom-syllabus-note">Course lens only · open the syllabus to check topics and objectives while studying.</div>${relatedHtml}</div><button class="btn outline small" data-open-syllabus="${escapeHtml(r.id)}">Open syllabus</button></div>`;
  }).join('');
- box.querySelectorAll('[data-open-syllabus]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openSyllabus));location.href='3study.html'}));
+ box.querySelectorAll('[data-open-syllabus],[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openSyllabus||b.dataset.openResource));location.href='3study.html'}));
 }
 function renderCoursePicker(){
  const picker=document.querySelector('#resourceCoursePicker');if(!picker)return;
@@ -225,9 +267,9 @@ async function loadRemoteResources(){
  const list=document.querySelector('#libraryList');
  if(!supabaseClient){libraryLoaded=true;resources=[];renderResources();return;}
  const session=await getCurrentSession();
- if(!session){libraryLoaded=true;resources=[];renderResources();return;}
+ if(!session){if(!isLoginPage)location.replace('index.html');return;}
  try{
-   const {data,error}=await supabaseClient.from('resources').select('*').order('created_at',{ascending:false});
+   const {data,error}=await supabaseClient.from('resources').select('*').eq('owner_id',session.user.id).order('created_at',{ascending:false});
    if(error)throw error;
    resources=(data||[]).map(normalizeResource);libraryLoaded=true;renderResources();
  }catch(e){
@@ -247,12 +289,13 @@ function renderResources(){
  const q=(document.querySelector('#resourceSearch')?.value||'').toLowerCase().trim();
  const shown=resources.filter(r=>(!filter||r.courses?.includes(filter)||r.course===filter)&&(!q||`${r.title} ${r.fileName||''} ${r.type||''} ${(r.courses||[]).join(' ')} ${r.author||''} ${r.institution||''} ${r.year||''} ${r.schoolYear||''}`.toLowerCase().includes(q)));
  if(!shown.length){list.innerHTML='<div class="empty-icon">＋</div><h2>Your library is empty.</h2><p>Add a source to begin building your private study library.</p>';renderReferenceRegister();return}
- list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):' · Stored in Ivana'}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div><div class="resource-biblio">${escapeHtml(r.author||r.institution||'')}${r.year?' · '+escapeHtml(r.year):''}${r.schoolYear?' · '+escapeHtml(r.schoolYear):''}${r.semester?' · '+escapeHtml(r.semester):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div><div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}${r.fileName?' · Cloud stored':''}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${escapeHtml(r.id)}">Open</button><button class="btn outline small" data-delete-resource="${escapeHtml(r.id)}">Remove</button></div></div>`).join('')+'</div>';
+ list.innerHTML='<div class="resource-list">'+shown.map(r=>`<div class="resource-item" id="resource-${escapeHtml(r.id)}"><div class="resource-meta"><div class="resource-title">${escapeHtml(r.title)}</div><div class="resource-file">${escapeHtml(sourceTypeName(r.type))}${r.fileName?' · '+escapeHtml(r.fileName):' · Stored in Ivana'}</div><div class="resource-course">${escapeHtml((r.courses?.length?r.courses.map(courseName).join(' · '):courseName(r.course)))}</div><div class="resource-biblio">${escapeHtml(r.author||r.institution||'')}${r.year?' · '+escapeHtml(r.year):''}${r.schoolYear?' · '+escapeHtml(r.schoolYear):''}${r.semester?' · '+escapeHtml(r.semester):''}${r.edition?' · '+escapeHtml(r.edition):''}${r.publisher?' · '+escapeHtml(r.publisher):''}</div><div class="resource-map-status">${r.type==='syllabus'?'Course lens only · not a knowledge-map source':'Knowledge-map eligible reference'}${r.fileName?' · Cloud stored':''}</div></div><div class="resource-actions"><button class="btn outline small" data-open-resource="${escapeHtml(r.id)}">Open</button><button class="btn outline small" data-delete-resource="${escapeHtml(r.id)}">Remove</button></div></div>`).join('')+'</div>';
  list.querySelectorAll('[data-open-resource]').forEach(b=>b.addEventListener('click',()=>{localStorage.setItem('ivana_currentResource',String(b.dataset.openResource));location.href='3study.html'}));
  list.querySelectorAll('[data-delete-resource]').forEach(b=>b.addEventListener('click',async()=>{await deleteRemoteResource(String(b.dataset.deleteResource));}));
  renderReferenceRegister();
  renderCourses();
  renderHome();
+ const focusId=String(localStorage.getItem('ivana_currentResource')||''); if(focusId){setTimeout(()=>{const el=document.getElementById('resource-'+focusId);if(el){el.classList.add('resource-focused');el.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>el.classList.remove('resource-focused'),1800)}},60)}
 }
 function currentSourceTitle(){
  const type=$('#resourceType')?.value||'';
@@ -342,63 +385,71 @@ $('#addResource')?.addEventListener('click',addResource);
 $('#resourceSearch')?.addEventListener('input',renderResources);$('#resourceCourseFilter')?.addEventListener('change',renderResources);
 
 /* Study resource loading and PDF.js reader. */
-let activeSourceRecord=null, pdfDoc=null, pdfPageNumber=1, pdfScale=1, activeAnnotationTool='yellow';
+let activeSourceRecord=null, pdfDoc=null, pdfPageNumber=1, pdfScale=1, activeAnnotationTool='yellow', pageHasText=true, scanDrawing=null;
 async function openStudyResource(){
  const reader=document.querySelector('#readerEmpty');if(!reader)return;
  const wrap=$('#pdfPageWrap'), metaId=String(localStorage.getItem('ivana_currentResource')||'');if(!metaId)return;
  try{
-   const session=await getCurrentSession();if(!session){reader.innerHTML='<span>Please sign in to open this source.</span>';return}
-   const {data,error}=await supabaseClient.from('resources').select('*').eq('id',metaId).single();if(error)throw error;
-   activeSourceRecord=normalizeResource(data);$('#readerDocName').textContent=activeSourceRecord.title||activeSourceRecord.fileName||'Source';
+   const session=await getCurrentSession();
+   if(!session){location.replace('index.html');return;}
+   const {data,error}=await supabaseClient.from('resources').select('*').eq('id',metaId).eq('owner_id',session.user.id).maybeSingle();
+   if(error)throw error;
+   if(!data){reader.hidden=false;reader.innerHTML='<span>This resource could not be found in your Library.</span><small>The database record may no longer be available for this signed-in account.</small><a class="btn outline small" href="2library.html">Back to Library</a>';return;}
+   activeSourceRecord=normalizeResource(data);
+   $('#readerDocName').textContent=activeSourceRecord.title||activeSourceRecord.fileName||'Source';
    if(activeSourceRecord.text||activeSourceRecord.html){reader.hidden=true;wrap.hidden=false;$('#pdfPage').innerHTML='<div class="source-text-view">'+(activeSourceRecord.html||escapeHtml(activeSourceRecord.text||''))+'</div>';$('#pageCount').textContent='1';$('#pageNum').textContent='1';return;}
    if(activeSourceRecord.storagePath){
      if(activeSourceRecord.mimeType.includes('pdf')||activeSourceRecord.fileName.toLowerCase().endsWith('.pdf')){
-       if(!window.pdfjsLib){reader.innerHTML='<span>PDF reader is unavailable.</span>';return}
-       const {data:file,error:fileError}=await supabaseClient.storage.from(STORAGE_BUCKET).download(activeSourceRecord.storagePath);if(fileError)throw fileError;
+       if(!window.pdfjsLib){reader.innerHTML='<span>PDF reader is unavailable.</span>';return;}
+       const {data:file,error:fileError}=await supabaseClient.storage.from(STORAGE_BUCKET).download(activeSourceRecord.storagePath);
+       if(fileError)throw fileError;
        pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
        const bytes=await file.arrayBuffer();pdfDoc=await pdfjsLib.getDocument({data:bytes}).promise;pdfPageNumber=1;pdfScale=1;$('#pageCount').textContent=pdfDoc.numPages;reader.hidden=true;wrap.hidden=false;await renderPdfPage();return;
      }
-     const {data:urlData,error:urlError}=await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(activeSourceRecord.storagePath,600);if(urlError)throw urlError;
-     reader.innerHTML='<span>This file is stored in your private Ivana Library.</span><a class="btn primary" href="'+urlData.signedUrl+'" target="_blank" rel="noopener">Open file</a><small>DOC/DOCX content extraction will be handled by the Supabase ingestion layer.</small>';return;
+     const {data:urlData,error:urlError}=await supabaseClient.storage.from(STORAGE_BUCKET).createSignedUrl(activeSourceRecord.storagePath,600);
+     if(urlError)throw urlError;
+     reader.innerHTML='<span>This file is stored in your private Ivana Library.</span><a class="btn primary" href="'+urlData.signedUrl+'" target="_blank" rel="noopener">Open file</a><small>DOC/DOCX/PPT/PPTX content extraction will be added in the ingestion layer.</small>';return;
    }
-   reader.innerHTML='<span>This source has no stored file.</span>';
- }catch(e){console.error('Ivana source open failed:',e);reader.hidden=false;reader.innerHTML='<span>Could not open this source.</span><small>'+escapeHtml(e.message||'Unknown reader error')+'</small>'}
+   reader.innerHTML='<span>This resource has no stored file.</span><small>The database record exists, but no Storage path is attached to it.</small><a class="btn outline small" href="2library.html">Back to Library</a>';
+ }catch(e){
+   console.error('Ivana source open failed:',e);
+   reader.hidden=false;
+   reader.innerHTML='<span>Could not open this source.</span><small>'+escapeHtml(e.message||'Unknown reader error')+'</small><a class="btn outline small" href="2library.html">Back to Library</a>';
+ }
 }
 async function renderPdfPage(){
- if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPageNumber);const base=page.getViewport({scale:1});const viewport=page.getViewport({scale:pdfScale});const canvas=$('#pdfCanvas'),ctx=canvas.getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;$('#pdfPage').style.width=viewport.width+'px';$('#pdfPage').style.height=viewport.height+'px';await page.render({canvasContext:ctx,viewport}).promise;
+ if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPageNumber);const viewport=page.getViewport({scale:pdfScale});const canvas=$('#pdfCanvas'),ctx=canvas.getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;$('#pdfPage').style.width=viewport.width+'px';$('#pdfPage').style.height=viewport.height+'px';await page.render({canvasContext:ctx,viewport}).promise;
  const textLayer=$('#textLayer');textLayer.innerHTML='';textLayer.style.width=viewport.width+'px';textLayer.style.height=viewport.height+'px';const content=await page.getTextContent();
- pdfjsLib.renderTextLayer({textContentSource:content,container:textLayer,viewport,textDivs:[]});
- $('#pageNum').textContent=pdfPageNumber;$('#zoomLabel').textContent=Math.round(pdfScale*100)+'%';restoreAnnotations();
+ pageHasText=content.items.some(item=>String(item.str||'').trim().length>0);
+ if(pageHasText){pdfjsLib.renderTextLayer({textContentSource:content,container:textLayer,viewport,textDivs:[]});}
+ const layer=$('#annotationLayer');if(layer){layer.classList.toggle('scan-annotation-active',!pageHasText&&activeAnnotationTool!=='underline');layer.style.width=viewport.width+'px';layer.style.height=viewport.height+'px';}
+ $('#pageNum').textContent=pdfPageNumber;$('#zoomLabel').textContent=Math.round(pdfScale*100)+'%';
+ $('#readerStatus').textContent=pageHasText?'Select text in the page, then choose an annotation tool.':'Scanned page — choose a color, then drag over a passage or figure to mark it.';
+ restoreAnnotations();
 }
 function selectionRects(){const sel=window.getSelection();if(!sel||sel.isCollapsed||!$('#pdfPage')?.contains(sel.anchorNode))return null;const rects=Array.from(sel.getRangeAt(0).getClientRects());const pageRect=$('#pdfPage').getBoundingClientRect();return {text:sel.toString().trim(),rects:rects.map(r=>({x:(r.left-pageRect.left)/pdfScale,y:(r.top-pageRect.top)/pdfScale,w:r.width/pdfScale,h:r.height/pdfScale})).filter(r=>r.w>1&&r.h>1)};}
-function applyAnnotation(tool){const a=selectionRects();if(!a?.text){$('#readerStatus').textContent='Select text in the PDF first, then choose an annotation tool.';return;}const store=load('annotations',[]);store.push({resourceId:activeSourceRecord?.id,page:pdfPageNumber,type:tool,text:a.text,rects:a.rects,note:tool==='note'?prompt('Add a note for this selection:',''):''});save('annotations',store);window.getSelection()?.removeAllRanges();restoreAnnotations();$('#readerStatus').textContent=tool==='note'?'Note saved to this selection.':(tool==='underline'?'Underline added.':'Highlight added.');}
-function restoreAnnotations(){const layer=$('#annotationLayer');if(!layer)return;layer.innerHTML='';const anns=load('annotations',[]).filter(a=>Number(a.resourceId)===Number(activeSourceRecord?.id)&&Number(a.page)===pdfPageNumber);const colors={yellow:'#e5cf61',blue:'#7ea8c8',green:'#86a989',red:'#c4776d'};anns.forEach(a=>a.rects.forEach(r=>{const el=document.createElement('div');el.className='annotation-mark annotation-'+a.type+' '+(a.type==='underline'?'annotation-underline':'');el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';if(a.type!=='underline')el.style.background=colors[a.type]||colors.yellow;el.title=a.note||a.text;layer.appendChild(el)}));}
+function armScanMode(){const layer=$('#annotationLayer');if(!layer)return;layer.classList.add('scan-annotation-active');$('#readerStatus').textContent='Scanned page — drag over a passage or figure to mark it.';}
+function applyAnnotation(tool){if(!pageHasText){if(tool==='underline'){$('#readerStatus').textContent='Underline requires selectable text. On this scanned page, drag over the passage with a color or use Note.';return;}armScanMode();return;}const a=selectionRects();if(!a?.text){$('#readerStatus').textContent='Select text in the PDF first, then choose an annotation tool.';return;}const store=load('annotations',[]);store.push({resourceId:activeSourceRecord?.id,page:pdfPageNumber,type:tool,text:a.text,rects:a.rects,note:tool==='note'?prompt('Add a note for this selection:',''):''});save('annotations',store);window.getSelection()?.removeAllRanges();restoreAnnotations();$('#readerStatus').textContent=tool==='note'?'Note saved to this selection.':(tool==='underline'?'Underline added.':'Highlight added.');}
+function restoreAnnotations(){const layer=$('#annotationLayer');if(!layer)return;layer.innerHTML='';const anns=load('annotations',[]).filter(a=>String(a.resourceId)===String(activeSourceRecord?.id)&&Number(a.page)===Number(pdfPageNumber));const colors={yellow:'#e5cf61',blue:'#7ea8c8',green:'#86a989',red:'#c4776d'};anns.forEach(a=>a.rects.forEach(r=>{const el=document.createElement('div');el.className='annotation-mark annotation-'+a.type+' '+(a.type==='underline'?'annotation-underline':'');el.style.left=r.x+'px';el.style.top=r.y+'px';el.style.width=r.w+'px';el.style.height=r.h+'px';if(a.type!=='underline')el.style.background=colors[a.type]||colors.yellow;el.title=a.note||a.text||'Marked region';layer.appendChild(el)}));}
 document.querySelectorAll('[data-annotation-tool]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-annotation-tool]').forEach(x=>x.classList.remove('active'));btn.classList.add('active');activeAnnotationTool=btn.dataset.annotationTool;applyAnnotation(activeAnnotationTool)}));
+const annotationLayer=$('#annotationLayer');
+annotationLayer?.addEventListener('pointerdown',e=>{if(pageHasText||!activeAnnotationTool||activeAnnotationTool==='underline'||e.target!==annotationLayer)return;const r=annotationLayer.getBoundingClientRect();scanDrawing={x:(e.clientX-r.left)/pdfScale,y:(e.clientY-r.top)/pdfScale};const draft=document.createElement('div');draft.className='annotation-mark annotation-'+(activeAnnotationTool==='note'?'yellow':activeAnnotationTool);draft.dataset.draft='true';annotationLayer.appendChild(draft);e.preventDefault();});
+annotationLayer?.addEventListener('pointermove',e=>{if(!scanDrawing)return;const r=annotationLayer.getBoundingClientRect(),x=(e.clientX-r.left)/pdfScale,y=(e.clientY-r.top)/pdfScale,d=annotationLayer.querySelector('[data-draft="true"]');if(!d)return;d.style.left=Math.min(scanDrawing.x,x)+'px';d.style.top=Math.min(scanDrawing.y,y)+'px';d.style.width=Math.abs(x-scanDrawing.x)+'px';d.style.height=Math.abs(y-scanDrawing.y)+'px';e.preventDefault();});
+annotationLayer?.addEventListener('pointerup',e=>{if(!scanDrawing)return;const d=annotationLayer.querySelector('[data-draft="true"]');scanDrawing=null;if(!d)return;d.removeAttribute('data-draft');const x=parseFloat(d.style.left||0),y=parseFloat(d.style.top||0),w=parseFloat(d.style.width||0),h=parseFloat(d.style.height||0);if(w<6||h<6){d.remove();return;}const type=activeAnnotationTool==='note'?'yellow':activeAnnotationTool;let note='';if(activeAnnotationTool==='note')note=prompt('Add a note for this marked area:','')||'';const store=load('annotations',[]);store.push({resourceId:activeSourceRecord?.id,page:pdfPageNumber,type,text:'',rects:[{x,y,w,h}],note,scanned:true});save('annotations',store);restoreAnnotations();$('#readerStatus').textContent=activeAnnotationTool==='note'?'Note saved to this scanned area.':'Marked scanned area.';e.preventDefault();});
 $('#prevPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber>1){pdfPageNumber--;await renderPdfPage()}});$('#nextPage')?.addEventListener('click',async()=>{if(pdfDoc&&pdfPageNumber<pdfDoc.numPages){pdfPageNumber++;await renderPdfPage()}});
 $('#zoomIn')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.min(2.5,pdfScale+.1);await renderPdfPage()}});$('#zoomOut')?.addEventListener('click',async()=>{if(pdfDoc){pdfScale=Math.max(.5,pdfScale-.1);await renderPdfPage()}});$('#fitWidth')?.addEventListener('click',async()=>{if(pdfDoc){const p=await pdfDoc.getPage(pdfPageNumber);const v=p.getViewport({scale:1});const available=Math.max(320,($('#readerViewport')?.clientWidth||900)-38);pdfScale=available/v.width;await renderPdfPage()}});
 $('#readerViewport')?.addEventListener('mouseup',()=>{if(activeAnnotationTool&&activeAnnotationTool!=='none'){const a=selectionRects();if(a?.text)$('#readerStatus').textContent='Selection ready. Choose an annotation tool to apply it.'}});
 openStudyResource();
+$('#openLibraryFromStudy')?.addEventListener('click',()=>{if(activeSourceRecord?.id)localStorage.setItem('ivana_currentResource',String(activeSourceRecord.id));location.href='2library.html'});
 
 
 /* Remember + Guide is deliberately study-page only. */
 const guide=document.querySelector('#rememberGuide');
 const guideClose=document.querySelector('#rememberGuideClose');
 const guideBody=document.querySelector('#rememberGuideBody');
-const guideCollapsed=()=>load('rememberGuideCollapsed',false)===true;
-function renderGuide(){
- if(!guide)return;
- const collapsed=guideCollapsed();
- /* The Guide itself must remain visible on Study; only its body collapses. */
- if(guideBody)guideBody.hidden=collapsed;
- if(guideClose){
-   guideClose.textContent=collapsed?'⌄':'⌃';
-   guideClose.setAttribute('aria-expanded',String(!collapsed));
-   guideClose.setAttribute('aria-label',collapsed?'Expand guide':'Collapse guide');
-   guideClose.title=collapsed?'Expand guide':'Collapse guide';
- }
-}
-if(guideClose)guideClose.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();save('rememberGuideCollapsed',!guideCollapsed());renderGuide()});
-if(guide)renderGuide();
+function renderGuide(){if(!guide)return;const collapsed=load('rememberGuideCollapsed',false)===true;if(guideBody)guideBody.hidden=collapsed;if(guideClose){guideClose.textContent=collapsed?'⌄':'⌃';guideClose.setAttribute('aria-expanded',String(!collapsed));guideClose.setAttribute('aria-label',collapsed?'Expand guide':'Collapse guide');}}
+if(guideClose)guideClose.addEventListener('click',()=>{save('rememberGuideCollapsed',!(load('rememberGuideCollapsed',false)===true));renderGuide()});
+if(guide){guide.hidden=false;renderGuide();}
 
 /* Study timer — persistent across pages */
 const timerDefaults={sec:1800,mode:'Focus',running:false,endAt:null,sessionStart:null,initialSec:1800};
@@ -431,38 +482,7 @@ function showInspiration(){const card=$('#inspireCard');if(!card)return;let next
 function closeInspiration(){if($('#inspireCard'))$('#inspireCard').hidden=true}
 $('#inspireButton')?.addEventListener('click',showInspiration);$('#inspireNext')?.addEventListener('click',showInspiration);$('#inspireClose')?.addEventListener('click',closeInspiration);
 
-function makeDraggable(el,key){
- if(!el)return;
- const handle=el.querySelector('[data-drag-handle]');if(!handle)return;
- const savedPos=load('float_'+key,null);
- if(savedPos&&Number.isFinite(savedPos.left)&&Number.isFinite(savedPos.top)){
-   el.style.left=savedPos.left+'px';el.style.top=savedPos.top+'px';el.style.right='auto';el.style.bottom='auto';
- }
- let dragging=false,pointerId=null,startX=0,startY=0,baseX=0,baseY=0;
- const move=(x,y)=>{
-   const maxX=Math.max(8,window.innerWidth-el.offsetWidth-8),maxY=Math.max(8,window.innerHeight-el.offsetHeight-8);
-   el.style.left=Math.min(maxX,Math.max(8,baseX+x-startX))+'px';
-   el.style.top=Math.min(maxY,Math.max(8,baseY+y-startY))+'px';
-   el.style.right='auto';el.style.bottom='auto';
- };
- const stop=()=>{
-   if(!dragging)return;
-   dragging=false;el.classList.remove('dragging');document.body.style.userSelect='';
-   if(pointerId!==null&&handle.hasPointerCapture?.(pointerId)){try{handle.releasePointerCapture(pointerId)}catch(_e){}}
-   save('float_'+key,{left:parseFloat(el.style.left),top:parseFloat(el.style.top)});pointerId=null;
- };
- handle.addEventListener('pointerdown',e=>{
-   if(e.button!==undefined&&e.button!==0)return;
-   if(e.target.closest('button,a,input,textarea,select'))return;
-   e.preventDefault();pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;
-   const r=el.getBoundingClientRect();baseX=r.left;baseY=r.top;
-   dragging=true;el.classList.add('dragging');document.body.style.userSelect='none';
-   try{handle.setPointerCapture(e.pointerId)}catch(_e){}
- });
- handle.addEventListener('pointermove',e=>{if(dragging&&e.pointerId===pointerId){e.preventDefault();move(e.clientX,e.clientY)}});
- handle.addEventListener('pointerup',e=>{if(e.pointerId===pointerId)stop()});
- handle.addEventListener('pointercancel',e=>{if(e.pointerId===pointerId)stop()});
-}
+function makeDraggable(el,key){if(!el)return;const handle=el.querySelector('[data-drag-handle]');if(!handle)return;const savedPos=load('float_'+key,null);if(savedPos&&Number.isFinite(savedPos.left)&&Number.isFinite(savedPos.top)){el.style.left=savedPos.left+'px';el.style.top=savedPos.top+'px';el.style.right='auto';el.style.bottom='auto'}let dragging=false,startX=0,startY=0,baseX=0,baseY=0;const move=(x,y)=>{const maxX=Math.max(8,window.innerWidth-el.offsetWidth-8),maxY=Math.max(8,window.innerHeight-el.offsetHeight-8);el.style.left=Math.min(maxX,Math.max(8,baseX+x-startX))+'px';el.style.top=Math.min(maxY,Math.max(8,baseY+y-startY))+'px';el.style.right='auto';el.style.bottom='auto'};const stop=()=>{if(!dragging)return;dragging=false;el.classList.remove('dragging');document.body.style.userSelect='';save('float_'+key,{left:parseFloat(el.style.left),top:parseFloat(el.style.top)});window.removeEventListener('mousemove',mm);window.removeEventListener('mouseup',stop)};const mm=e=>move(e.clientX,e.clientY);const start=(x,y)=>{dragging=true;startX=x;startY=y;const r=el.getBoundingClientRect();baseX=r.left;baseY=r.top;el.classList.add('dragging');document.body.style.userSelect='none';window.addEventListener('mousemove',mm);window.addEventListener('mouseup',stop)};handle.addEventListener('mousedown',e=>{e.preventDefault();start(e.clientX,e.clientY)})}
 makeDraggable($('#studyFloatDock'),'dock');
 makeDraggable($('#rememberGuide'),'guide');
 
@@ -471,7 +491,38 @@ setInterval(()=>{if(!running||idleTriggered)return;if(Date.now()-lastActivity>45
 
 /* Study side panels */
 document.querySelectorAll('.side-tab').forEach(btn=>btn.addEventListener('click',()=>{const key=btn.dataset.tab;document.querySelectorAll('.side-tab').forEach(x=>x.classList.toggle('active',x===btn));document.querySelectorAll('.side-panel').forEach(p=>p.hidden=p.dataset.panel!==key)}));
-const notes=$('#personalNotes');if(notes){notes.value=load('personalNotes','');$('#saveNotes')?.addEventListener('click',()=>{save('personalNotes',notes.value);if($('#saveStatus'))$('#saveStatus').textContent='Saved locally.'})}
+const notes=$('#personalNotes');
+if(notes){
+ const savedNotes=load('personalNotes','');
+ notes.innerHTML=String(savedNotes||'').startsWith('<')?String(savedNotes):escapeHtml(savedNotes).replace(/\n/g,'<br>');
+ const focusNotes=()=>{notes.focus()};
+ const runNoteCommand=(command)=>{
+   focusNotes();
+   if(command==='table'){
+     const rows=Math.min(8,Math.max(1,Number(prompt('Number of rows','2'))||2));
+     const cols=Math.min(8,Math.max(1,Number(prompt('Number of columns','2'))||2));
+     let html='<table class="notebook-table"><tbody>';
+     for(let r=0;r<rows;r++){html+='<tr>';for(let c=0;c<cols;c++)html+='<td><br></td>';html+='</tr>'}
+     html+='</tbody></table><p><br></p>';
+     document.execCommand('insertHTML',false,html);
+     return;
+   }
+   if(command==='indent'){
+     document.execCommand('indent',false,null);
+     return;
+   }
+   document.execCommand(command,false,null);
+ };
+ document.querySelectorAll('[data-note-command]').forEach(btn=>btn.addEventListener('mousedown',e=>e.preventDefault()));
+ document.querySelectorAll('[data-note-command]').forEach(btn=>btn.addEventListener('click',()=>runNoteCommand(btn.dataset.noteCommand)));
+ notes.addEventListener('keydown',e=>{
+   if(e.key==='Tab'){
+     e.preventDefault();
+     if(e.shiftKey)document.execCommand('outdent',false,null);else document.execCommand('indent',false,null);
+   }
+ });
+ $('#saveNotes')?.addEventListener('click',()=>{save('personalNotes',notes.innerHTML);if($('#saveStatus'))$('#saveStatus').textContent='Saved locally.'});
+}
 
 function renderProgressSessions(){
  if(!$('#sessions'))return;

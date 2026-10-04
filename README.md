@@ -1,4 +1,4 @@
-# Ivana V5.3 — Library + Cross-Device Foundation
+# Ivana v5.7_stable — Functional Study Application
 
 ## What changed
 - Library UI rebuilt around the agreed source-specific fields.
@@ -33,19 +33,15 @@ Do not place service-role keys or passwords in the frontend.
 - The clickable prototype entry is no longer visible on the login page; it is hidden inside the Forgot Password modal for development access.
 
 
-## V5.4 login-only refinement
-The V5.3 Library + Study prototype is unchanged. V5.4 only changes the login surface for the administrator-provisioned Supabase account: visible account creation is removed, Forgot Password remains, and the prototype entry stays hidden inside Forgot Password. No new superadmin database migration or role logic is included in this version.
+## v5.7_stable focus
+- Library, Classroom, Study, Review/Exams, and Progress remain the functional core.
+- Existing Supabase `resources` records and the private `library` Storage bucket are used; the separate Supabase `library` table is not used by the app Library page.
+- Knowledge Map remains a reference-ready placeholder; concept extraction/relationship generation is paused.
+- Study reader now supports scanned/image-only PDF pages with region-based semantic marking when no text layer is available.
+- Text PDFs continue to use text selection for highlights, underline, and notes.
+- Remember + Guide remains visible on Study and collapses only its contents.
+- Timer and Inspire Me remain separate floating devices; Inspire Me opens below its button.
+- Study can return to the selected resource in Library.
 
-
-## V5.4 interface refinement backup
-- Timer and Inspire Me are one movable floating unit.
-- Timer drag uses pointer events for Windows/macOS mouse and trackpad compatibility.
-- Remember + Guide stays present and can collapse/expand with the arrow; it is independently movable.
-- Root/index routes to the canonical 0login.html entry.
-- Existing Supabase Library and study functionality are otherwise preserved from this baseline.
-
-
-## V5.4 Interface lock
-- Remember + Guide remains visible on the Study page when collapsed; only the guide body collapses.
-- The arrow toggles between collapsed and expanded states.
-- Guide position remains movable and persistent.
+## Important
+This ZIP is a complete project snapshot intended to replace the current Ivana project files. It does not modify live Supabase data or execute migrations.
